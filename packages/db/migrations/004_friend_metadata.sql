@@ -1,1 +1,0 @@
-ALTER TABLE friends ADD COLUMN metadata TEXT NOT NULL DEFAULT '{}';
