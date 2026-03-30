@@ -80,8 +80,8 @@ export function jitterDeliveryTime(scheduledAt: Date): Date {
 }
 
 /**
- * Rate limiter for LINE API calls.
- * LINE rate limit is 100,000 messages/min, but we stay well under.
+ * Rate limiter for Instagram API calls.
+ * IG Send API has stricter rate limits than LINE — keep well under.
  */
 export class StealthRateLimiter {
   private callCount = 0;

@@ -6,7 +6,7 @@ import {
   updateAutomation,
   deleteAutomation,
   getAutomationLogs,
-} from '@line-crm/db';
+} from '@instagram-harness/db';
 import type { Env } from '../index.js';
 
 const automations = new Hono<Env>();

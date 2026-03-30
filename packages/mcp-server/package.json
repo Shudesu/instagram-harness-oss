@@ -1,9 +1,9 @@
 {
-  "name": "@line-harness/mcp-server",
-  "version": "0.8.1",
+  "name": "@instagram-harness/mcp-server",
+  "version": "0.1.0",
   "type": "module",
   "bin": {
-    "line-harness-mcp": "./dist/index.js"
+    "instagram-harness-mcp": "./dist/index.js"
   },
   "main": "./dist/index.js",
   "scripts": {
@@ -11,7 +11,7 @@
     "dev": "tsup --watch"
   },
   "dependencies": {
-    "@line-harness/sdk": "workspace:*",
+    "@instagram-harness/sdk": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.12.1",
     "zod": "^3.24.4"
   },

@@ -10,7 +10,7 @@ import {
   deleteScenarioStep,
   enrollFriendInScenario,
   getFriendById,
-} from '@line-crm/db';
+} from '@instagram-harness/db';
 import type {
   Scenario as DbScenario,
   ScenarioWithStepCount as DbScenarioWithStepCount,
@@ -18,7 +18,7 @@ import type {
   FriendScenario as DbFriendScenario,
   ScenarioTriggerType,
   MessageType,
-} from '@line-crm/db';
+} from '@instagram-harness/db';
 import type { Env } from '../index.js';
 
 const scenarios = new Hono<Env>();

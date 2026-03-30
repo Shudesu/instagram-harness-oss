@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
-import { getTags, createTag, deleteTag } from '@line-crm/db';
-import type { Tag as DbTag } from '@line-crm/db';
+import { getTags, createTag, deleteTag } from '@instagram-harness/db';
+import type { Tag as DbTag } from '@instagram-harness/db';
 import type { Env } from '../index.js';
 
 const tags = new Hono<Env>();

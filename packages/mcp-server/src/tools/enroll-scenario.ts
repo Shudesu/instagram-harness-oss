@@ -5,17 +5,17 @@ import { getClient } from "../client.js";
 export function registerEnrollScenario(server: McpServer): void {
   server.tool(
     "enroll_in_scenario",
-    "Enroll a friend into a scenario. The friend will start receiving the scenario's step messages from step 1.",
+    "Enroll an Instagram follower into a scenario. The follower will start receiving the scenario's step messages from step 1.",
     {
       scenarioId: z
         .string()
-        .describe("The scenario ID to enroll the friend in"),
-      friendId: z.string().describe("The friend's ID to enroll"),
+        .describe("The scenario ID to enroll the follower in"),
+      followerId: z.string().describe("The follower's ID to enroll"),
     },
-    async ({ scenarioId, friendId }) => {
+    async ({ scenarioId, followerId }) => {
       try {
         const client = getClient();
-        const enrollment = await client.scenarios.enroll(scenarioId, friendId);
+        const enrollment = await client.scenarios.enroll(scenarioId, followerId);
         return {
           content: [
             {

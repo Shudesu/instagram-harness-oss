@@ -1,4 +1,4 @@
-import { LineHarnessError } from './errors.js'
+import { InstagramHarnessError } from './errors.js'
 
 interface HttpClientConfig {
   baseUrl: string
@@ -64,7 +64,7 @@ export class HttpClient {
       } catch {
         // ignore parse errors
       }
-      throw new LineHarnessError(errorMessage, res.status, `${method} ${path}`)
+      throw new InstagramHarnessError(errorMessage, res.status, `${method} ${path}`)
     }
 
     return res.json() as Promise<T>

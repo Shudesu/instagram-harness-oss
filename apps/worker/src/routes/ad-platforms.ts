@@ -7,7 +7,7 @@ import {
   deleteAdPlatform,
   getAdConversionLogs,
   getAdPlatformByName,
-} from '@line-crm/db';
+} from '@instagram-harness/db';
 import { sendAdConversions } from '../services/ad-conversion.js';
 import type { Env } from '../index.js';
 

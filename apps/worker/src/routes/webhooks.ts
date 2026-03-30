@@ -10,7 +10,7 @@ import {
   createOutgoingWebhook,
   updateOutgoingWebhook,
   deleteOutgoingWebhook,
-} from '@line-crm/db';
+} from '@instagram-harness/db';
 import type { Env } from '../index.js';
 
 const webhooks = new Hono<Env>();

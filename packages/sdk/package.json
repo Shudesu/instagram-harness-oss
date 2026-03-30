@@ -1,7 +1,7 @@
 {
-  "name": "@line-harness/sdk",
-  "version": "0.8.1",
-  "description": "AI-native SDK for LINE Harness — programmatic LINE official account automation",
+  "name": "@instagram-harness/sdk",
+  "version": "0.1.0",
+  "description": "AI-native SDK for Instagram Harness — programmatic Instagram DM automation",
   "type": "module",
   "exports": {
     ".": {
@@ -26,7 +26,7 @@
     "typecheck": "tsc --noEmit"
   },
   "keywords": [
-    "line",
+    "instagram",
     "crm",
     "marketing-automation",
     "sdk",

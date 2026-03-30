@@ -1,26 +1,22 @@
-import { LineHarness } from "@line-harness/sdk";
+import { InstagramHarness } from "@instagram-harness/sdk";
 
-let clientInstance: LineHarness | null = null;
+let clientInstance: InstagramHarness | null = null;
 
-export function getClient(): LineHarness {
+export function getClient(): InstagramHarness {
   if (clientInstance) return clientInstance;
 
-  const apiUrl = process.env.LINE_HARNESS_API_URL;
-  const apiKey = process.env.LINE_HARNESS_API_KEY;
-  const accountId = process.env.LINE_HARNESS_ACCOUNT_ID;
+  // Support both INSTAGRAM_HARNESS_* and IG_HARNESS_* env var names
+  const apiUrl = process.env.INSTAGRAM_HARNESS_API_URL ?? process.env.IG_HARNESS_API_URL;
+  const apiKey = process.env.INSTAGRAM_HARNESS_API_KEY ?? process.env.IG_HARNESS_API_KEY;
 
-  if (!apiUrl) {
-    throw new Error("LINE_HARNESS_API_URL environment variable is required");
-  }
-  if (!apiKey) {
-    throw new Error("LINE_HARNESS_API_KEY environment variable is required");
+  if (!apiUrl || !apiKey) {
+    throw new Error(
+      "INSTAGRAM_HARNESS_API_URL (or IG_HARNESS_API_URL) and " +
+      "INSTAGRAM_HARNESS_API_KEY (or IG_HARNESS_API_KEY) must be set"
+    );
   }
 
-  clientInstance = new LineHarness({
-    apiUrl,
-    apiKey,
-    lineAccountId: accountId,
-  });
+  clientInstance = new InstagramHarness({ apiUrl, apiKey });
 
   return clientInstance;
 }

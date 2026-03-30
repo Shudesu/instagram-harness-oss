@@ -1,13 +1,17 @@
 import { jstNow } from './utils.js';
+
 export interface Friend {
   id: string;
+  igsid: string;
+  // Backward compat aliases for code that still references line_user_id
   line_user_id: string;
+  username: string | null;
   display_name: string | null;
   picture_url: string | null;
   status_message: string | null;
   is_following: number;
   user_id: string | null;
-  line_account_id: string | null;
+  score: number;
   metadata: string;
   created_at: string;
   updated_at: string;
@@ -51,14 +55,22 @@ export async function getFriends(
   return result.results;
 }
 
-export async function getFriendByLineUserId(
+export async function getFriendByIgsid(
   db: D1Database,
-  lineUserId: string,
+  igsid: string,
 ): Promise<Friend | null> {
   return db
-    .prepare(`SELECT * FROM friends WHERE line_user_id = ?`)
-    .bind(lineUserId)
+    .prepare(`SELECT * FROM friends WHERE igsid = ?`)
+    .bind(igsid)
     .first<Friend>();
+}
+
+/** Backward compat alias */
+export async function getFriendByLineUserId(
+  db: D1Database,
+  igsid: string,
+): Promise<Friend | null> {
+  return getFriendByIgsid(db, igsid);
 }
 
 export async function getFriendById(
@@ -72,9 +84,12 @@ export async function getFriendById(
 }
 
 export interface UpsertFriendInput {
-  lineUserId: string;
+  igsid: string;
+  username?: string | null;
   displayName?: string | null;
   pictureUrl?: string | null;
+  // Legacy alias
+  lineUserId?: string;
   statusMessage?: string | null;
 }
 
@@ -83,43 +98,44 @@ export async function upsertFriend(
   input: UpsertFriendInput,
 ): Promise<Friend> {
   const now = jstNow();
-  const existing = await getFriendByLineUserId(db, input.lineUserId);
+  const igsid = input.igsid || input.lineUserId!;
+  const existing = await getFriendByIgsid(db, igsid);
 
   if (existing) {
     await db
       .prepare(
         `UPDATE friends
-         SET display_name = ?,
+         SET username = ?,
+             display_name = ?,
              picture_url = ?,
-             status_message = ?,
              is_following = 1,
              updated_at = ?
-         WHERE line_user_id = ?`,
+         WHERE igsid = ?`,
       )
       .bind(
-        'displayName' in input ? (input.displayName ?? null) : existing.display_name,
-        'pictureUrl' in input ? (input.pictureUrl ?? null) : existing.picture_url,
-        'statusMessage' in input ? (input.statusMessage ?? null) : existing.status_message,
+        input.username ?? existing.username,
+        input.displayName ?? existing.display_name,
+        input.pictureUrl ?? existing.picture_url,
         now,
-        input.lineUserId,
+        igsid,
       )
       .run();
 
-    return (await getFriendByLineUserId(db, input.lineUserId))!;
+    return (await getFriendByIgsid(db, igsid))!;
   }
 
   const id = crypto.randomUUID();
   await db
     .prepare(
-      `INSERT INTO friends (id, line_user_id, display_name, picture_url, status_message, is_following, created_at, updated_at)
+      `INSERT INTO friends (id, igsid, username, display_name, picture_url, is_following, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, 1, ?, ?)`,
     )
     .bind(
       id,
-      input.lineUserId,
+      igsid,
+      input.username ?? null,
       input.displayName ?? null,
       input.pictureUrl ?? null,
-      input.statusMessage ?? null,
       now,
       now,
     )
@@ -130,16 +146,16 @@ export async function upsertFriend(
 
 export async function updateFriendFollowStatus(
   db: D1Database,
-  lineUserId: string,
+  igsid: string,
   isFollowing: boolean,
 ): Promise<void> {
   await db
     .prepare(
       `UPDATE friends
        SET is_following = ?, updated_at = ?
-       WHERE line_user_id = ?`,
+       WHERE igsid = ?`,
     )
-    .bind(isFollowing ? 1 : 0, jstNow(), lineUserId)
+    .bind(isFollowing ? 1 : 0, jstNow(), igsid)
     .run();
 }
 

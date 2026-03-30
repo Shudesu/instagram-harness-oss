@@ -4,7 +4,7 @@ export * from './tags';
 export * from './scenarios';
 export * from './broadcasts';
 export * from './users';
-export * from './line-accounts';
+export * from './ig-accounts';
 export * from './conversions';
 export * from './affiliates';
 export * from './webhooks';

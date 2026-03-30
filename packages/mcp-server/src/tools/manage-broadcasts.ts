@@ -18,14 +18,14 @@ export function registerManageBroadcasts(server: McpServer): void {
       targetTagId: z.string().nullable().optional().describe("Target tag ID (for create_draft, update)"),
       scheduledAt: z.string().nullable().optional().describe("ISO 8601 datetime to schedule (for create_draft, update)"),
       segmentConditions: z.string().optional().describe("JSON string of segment conditions: {operator: 'AND'|'OR', rules: [{type, value}]} (for send_to_segment)"),
-      accountId: z.string().optional().describe("LINE account ID (uses default if omitted)"),
+      accountId: z.string().optional().describe("Instagram account ID (reserved for future multi-account support)"),
     },
     async ({ action, broadcastId, title, messageType, messageContent, targetType, targetTagId, scheduledAt, segmentConditions, accountId }) => {
       try {
         const client = getClient();
 
         if (action === "list") {
-          const broadcasts = await client.broadcasts.list(accountId ? { accountId } : undefined);
+          const broadcasts = await client.broadcasts.list();
           const enriched = (broadcasts as Array<Record<string, unknown>>).map((b) => ({
             ...b,
             insightStatus: b.insight_status || null,
@@ -46,7 +46,7 @@ export function registerManageBroadcasts(server: McpServer): void {
           const input: Record<string, unknown> = { title, messageType, messageContent, targetType: targetType ?? "all" };
           if (targetTagId) input.targetTagId = targetTagId;
           if (scheduledAt) input.scheduledAt = scheduledAt;
-          if (accountId) input.lineAccountId = accountId;
+          // accountId reserved for future multi-account support
           const broadcast = await client.broadcasts.create(input as never);
           return { content: [{ type: "text" as const, text: JSON.stringify({ success: true, broadcast }, null, 2) }] };
         }

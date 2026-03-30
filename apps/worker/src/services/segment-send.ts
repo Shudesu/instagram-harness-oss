@@ -1,31 +1,28 @@
-import { extractFlexAltText } from '../utils/flex-alt-text.js';
 import {
   getBroadcastById,
   updateBroadcastStatus,
   jstNow,
-  updateBroadcastLineRequestId,
   createBroadcastInsight,
-} from '@line-crm/db';
-import type { Broadcast } from '@line-crm/db';
-import type { LineClient, Message } from '@line-crm/line-sdk';
-import { calculateStaggerDelay, sleep, addMessageVariation } from './stealth.js';
+} from '@instagram-harness/db';
+import type { Broadcast } from '@instagram-harness/db';
+import type { InstagramClient } from '@instagram-harness/ig-sdk';
+import { calculateStaggerDelay, sleep } from './stealth.js';
 import { buildSegmentQuery } from './segment-query.js';
 import type { SegmentCondition } from './segment-query.js';
 
-const MULTICAST_BATCH_SIZE = 500;
+const BATCH_SIZE = 50;
 
 interface FriendRow {
   id: string;
-  line_user_id: string;
+  igsid: string;
 }
 
 export async function processSegmentSend(
   db: D1Database,
-  lineClient: LineClient,
+  igClient: InstagramClient,
   broadcastId: string,
   condition: SegmentCondition,
 ): Promise<Broadcast> {
-  // Mark as sending
   await updateBroadcastStatus(db, broadcastId, 'sending');
 
   const broadcast = await getBroadcastById(db, broadcastId);
@@ -33,13 +30,11 @@ export async function processSegmentSend(
     throw new Error(`Broadcast ${broadcastId} not found`);
   }
 
-  const message = buildMessage(broadcast.message_type, broadcast.message_content);
-
+  const messageBody = JSON.parse(broadcast.message_content) as Record<string, unknown>;
   let totalCount = 0;
   let successCount = 0;
 
   try {
-    // Build and execute segment query to get matching friends
     const { sql, bindings } = buildSegmentQuery(condition);
     const queryResult = await db
       .prepare(sql)
@@ -50,32 +45,20 @@ export async function processSegmentSend(
     totalCount = friends.length;
 
     const now = jstNow();
-    const totalBatches = Math.ceil(friends.length / MULTICAST_BATCH_SIZE);
-    const unit = `bcast_${broadcast.id.slice(0, 8)}`;
+    for (let i = 0; i < friends.length; i += BATCH_SIZE) {
+      const batch = friends.slice(i, i + BATCH_SIZE);
+      const batchIndex = Math.floor(i / BATCH_SIZE);
 
-    for (let i = 0; i < friends.length; i += MULTICAST_BATCH_SIZE) {
-      const batchIndex = Math.floor(i / MULTICAST_BATCH_SIZE);
-      const batch = friends.slice(i, i + MULTICAST_BATCH_SIZE);
-      const lineUserIds = batch.map((f) => f.line_user_id);
-
-      // Stealth: stagger delays between batches
       if (batchIndex > 0) {
         const delay = calculateStaggerDelay(friends.length, batchIndex);
         await sleep(delay);
       }
 
-      // Stealth: add slight variation to text messages
-      let batchMessage = message;
-      if (message.type === 'text' && totalBatches > 1) {
-        batchMessage = { ...message, text: addMessageVariation(message.text, batchIndex) };
-      }
+      for (const friend of batch) {
+        try {
+          await sendIgMessage(igClient, friend.igsid, broadcast.message_type, messageBody);
+          successCount++;
 
-      try {
-        await lineClient.multicast(lineUserIds, [batchMessage], [unit]);
-        successCount += batch.length;
-
-        // Log successfully sent messages
-        for (const friend of batch) {
           const logId = crypto.randomUUID();
           await db
             .prepare(
@@ -84,18 +67,15 @@ export async function processSegmentSend(
             )
             .bind(logId, friend.id, broadcast.message_type, broadcast.message_content, broadcastId, now)
             .run();
+        } catch (err) {
+          console.error(`Segment send failed for friend ${friend.id}:`, err);
         }
-      } catch (err) {
-        console.error(`Segment multicast batch ${batchIndex} failed:`, err);
-        // Continue with next batch; failed batch is not logged
       }
     }
 
-    await updateBroadcastLineRequestId(db, broadcast.id, null, unit);
     await createBroadcastInsight(db, broadcast.id);
     await updateBroadcastStatus(db, broadcastId, 'sent', { totalCount, successCount });
   } catch (err) {
-    // On failure, reset to draft so it can be retried
     await updateBroadcastStatus(db, broadcastId, 'draft');
     throw err;
   }
@@ -103,35 +83,32 @@ export async function processSegmentSend(
   return (await getBroadcastById(db, broadcastId))!;
 }
 
-function buildMessage(messageType: string, messageContent: string, altText?: string): Message {
-  if (messageType === 'text') {
-    return { type: 'text', text: messageContent };
+async function sendIgMessage(
+  igClient: InstagramClient,
+  recipientId: string,
+  messageType: string,
+  body: Record<string, unknown>,
+): Promise<void> {
+  switch (messageType) {
+    case 'text':
+      await igClient.sendText(recipientId, body.text as string);
+      break;
+    case 'image':
+      await igClient.sendImage(recipientId, body.url as string);
+      break;
+    case 'template':
+      await igClient.sendGenericTemplate(recipientId, body.elements as never[]);
+      break;
+    case 'quick_reply':
+      await igClient.sendQuickReply(
+        recipientId,
+        body.text as string,
+        body.quick_replies as never[],
+      );
+      break;
+    default:
+      if (typeof body.text === 'string') {
+        await igClient.sendText(recipientId, body.text);
+      }
   }
-
-  if (messageType === 'image') {
-    try {
-      const parsed = JSON.parse(messageContent) as {
-        originalContentUrl: string;
-        previewImageUrl: string;
-      };
-      return {
-        type: 'image',
-        originalContentUrl: parsed.originalContentUrl,
-        previewImageUrl: parsed.previewImageUrl,
-      };
-    } catch {
-      return { type: 'text', text: messageContent };
-    }
-  }
-
-  if (messageType === 'flex') {
-    try {
-      const contents = JSON.parse(messageContent);
-      return { type: 'flex', altText: altText || extractFlexAltText(contents), contents };
-    } catch {
-      return { type: 'text', text: messageContent };
-    }
-  }
-
-  return { type: 'text', text: messageContent };
 }

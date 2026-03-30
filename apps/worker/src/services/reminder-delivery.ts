@@ -1,10 +1,8 @@
-import { extractFlexAltText } from '../utils/flex-alt-text.js';
-
 /**
- * リマインダ配信処理 — cronトリガーで定期実行
+ * Reminder delivery — runs on cron trigger
  *
- * target_date + offset_minutes の時刻が現在時刻以前で
- * まだ配信されていないステップを配信する
+ * Delivers reminder steps when target_date + offset_minutes has passed
+ * and the step has not yet been delivered.
  */
 
 import {
@@ -13,13 +11,13 @@ import {
   completeReminderIfDone,
   getFriendById,
   jstNow,
-} from '@line-crm/db';
-import type { LineClient, Message } from '@line-crm/line-sdk';
+} from '@instagram-harness/db';
+import type { InstagramClient } from '@instagram-harness/ig-sdk';
 import { addJitter, sleep } from './stealth.js';
 
 export async function processReminderDeliveries(
   db: D1Database,
-  lineClient: LineClient,
+  igClient: InstagramClient,
 ): Promise<void> {
   const now = jstNow();
   const dueReminders = await getDueReminderDeliveries(db, now);
@@ -27,22 +25,24 @@ export async function processReminderDeliveries(
   for (let i = 0; i < dueReminders.length; i++) {
     const fr = dueReminders[i];
     try {
-      // ステルス: バースト回避のためランダム遅延
+      // Add random delay to avoid burst patterns
       if (i > 0) {
         await sleep(addJitter(50, 200));
       }
 
       const friend = await getFriendById(db, fr.friend_id);
       if (!friend || !friend.is_following) {
-        // フォロー解除済み — スキップ
         continue;
       }
 
-      for (const step of fr.steps) {
-        const message = buildMessage(step.message_type, step.message_content);
-        await lineClient.pushMessage(friend.line_user_id, [message]);
+      const igsid = (friend as unknown as Record<string, unknown>).igsid as string
+        || (friend as unknown as Record<string, unknown>).line_user_id as string;
 
-        // メッセージログに記録
+      for (const step of fr.steps) {
+        const body = JSON.parse(step.message_content) as Record<string, unknown>;
+        await sendIgMessage(igClient, igsid, step.message_type, body);
+
+        // Log message
         const logId = crypto.randomUUID();
         await db
           .prepare(
@@ -52,37 +52,42 @@ export async function processReminderDeliveries(
           .bind(logId, friend.id, step.message_type, step.message_content, jstNow())
           .run();
 
-        // 配信済みを記録
         await markReminderStepDelivered(db, fr.id, step.id);
       }
 
-      // 全ステップ配信済みかチェック
       await completeReminderIfDone(db, fr.id, fr.reminder_id);
     } catch (err) {
-      console.error(`リマインダ配信エラー (friend_reminder ${fr.id}):`, err);
+      console.error(`Reminder delivery error (friend_reminder ${fr.id}):`, err);
     }
   }
 }
 
-function buildMessage(messageType: string, messageContent: string, altText?: string): Message {
-  if (messageType === 'text') {
-    return { type: 'text', text: messageContent };
+async function sendIgMessage(
+  igClient: InstagramClient,
+  recipientId: string,
+  messageType: string,
+  body: Record<string, unknown>,
+): Promise<void> {
+  switch (messageType) {
+    case 'text':
+      await igClient.sendText(recipientId, body.text as string);
+      break;
+    case 'image':
+      await igClient.sendImage(recipientId, body.url as string);
+      break;
+    case 'template':
+      await igClient.sendGenericTemplate(recipientId, body.elements as never[]);
+      break;
+    case 'quick_reply':
+      await igClient.sendQuickReply(
+        recipientId,
+        body.text as string,
+        body.quick_replies as never[],
+      );
+      break;
+    default:
+      if (typeof body.text === 'string') {
+        await igClient.sendText(recipientId, body.text);
+      }
   }
-  if (messageType === 'image') {
-    try {
-      const parsed = JSON.parse(messageContent) as { originalContentUrl: string; previewImageUrl: string };
-      return { type: 'image', originalContentUrl: parsed.originalContentUrl, previewImageUrl: parsed.previewImageUrl };
-    } catch {
-      return { type: 'text', text: messageContent };
-    }
-  }
-  if (messageType === 'flex') {
-    try {
-      const contents = JSON.parse(messageContent);
-      return { type: 'flex', altText: altText || extractFlexAltText(contents), contents };
-    } catch {
-      return { type: 'text', text: messageContent };
-    }
-  }
-  return { type: 'text', text: messageContent };
 }

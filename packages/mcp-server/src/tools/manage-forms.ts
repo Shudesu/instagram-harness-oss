@@ -16,7 +16,7 @@ export function registerManageForms(server: McpServer): void {
       onSubmitScenarioId: z.string().nullable().optional().describe("Scenario to enroll on submit (for update)"),
       onSubmitMessageType: z.enum(["text", "flex"]).nullable().optional().describe("Custom message type to send after form submission (for update). Supports template variables: {{name}}, {{auth_url:CHANNEL_ID}}"),
       onSubmitMessageContent: z.string().nullable().optional().describe("Custom message content to send after form submission (for update). If set, replaces the default confirmation Flex."),
-      saveToMetadata: z.boolean().optional().describe("Save responses to friend metadata (for update)"),
+      saveToMetadata: z.boolean().optional().describe("Save responses to follower metadata (for update)"),
       isActive: z.boolean().optional().describe("Active status (for update)"),
     },
     async ({ action, formId, name, description, fields, onSubmitTagId, onSubmitScenarioId, onSubmitMessageType, onSubmitMessageContent, saveToMetadata, isActive }) => {

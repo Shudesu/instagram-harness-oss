@@ -4,8 +4,8 @@ import { registerAllTools } from "./tools/index.js";
 import { registerAllResources } from "./resources/index.js";
 
 const server = new McpServer({
-  name: "line-harness",
-  version: "0.3.0",
+  name: "instagram-harness",
+  version: "0.1.0",
 });
 
 registerAllTools(server);
@@ -14,7 +14,7 @@ registerAllResources(server);
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error("LINE Harness MCP Server running on stdio");
+  console.error("Instagram Harness MCP Server running on stdio");
 }
 
 main().catch((error) => {

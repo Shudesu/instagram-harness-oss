@@ -1,6 +1,6 @@
 import { jstNow } from './utils.js';
-export type ScenarioTriggerType = 'friend_add' | 'tag_added' | 'manual';
-export type MessageType = 'text' | 'image' | 'flex';
+export type ScenarioTriggerType = 'friend_add' | 'tag_added' | 'manual' | 'dm_keyword' | 'comment' | 'follower_add';
+export type MessageType = 'text' | 'image' | 'template' | 'quick_reply' | 'flex';
 export type FriendScenarioStatus = 'active' | 'paused' | 'completed';
 
 export interface Scenario {
@@ -8,6 +8,7 @@ export interface Scenario {
   name: string;
   description: string | null;
   trigger_type: ScenarioTriggerType;
+  trigger_keyword: string | null;
   trigger_tag_id: string | null;
   line_account_id: string | null;
   is_active: number;

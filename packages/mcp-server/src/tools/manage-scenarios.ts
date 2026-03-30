@@ -24,14 +24,14 @@ export function registerManageScenarios(server: McpServer): void {
       conditionType: z.string().nullable().optional().describe("Condition type (for add_step, update_step)"),
       conditionValue: z.string().nullable().optional().describe("Condition value (for add_step, update_step)"),
       nextStepOnFalse: z.number().nullable().optional().describe("Next step on false (for add_step, update_step)"),
-      accountId: z.string().optional().describe("LINE account ID for list (uses default if omitted)"),
+      accountId: z.string().optional().describe("Instagram account ID for list (unused, reserved for future multi-account support)"),
     },
     async ({ action, scenarioId, stepId, name, description, triggerType, triggerTagId, isActive, stepOrder, delayMinutes, messageType, messageContent, conditionType, conditionValue, nextStepOnFalse, accountId }) => {
       try {
         const client = getClient();
 
         if (action === "list") {
-          const scenarios = await client.scenarios.list(accountId ? { accountId } : undefined);
+          const scenarios = await client.scenarios.list();
           return { content: [{ type: "text" as const, text: JSON.stringify({ success: true, scenarios }, null, 2) }] };
         }
 

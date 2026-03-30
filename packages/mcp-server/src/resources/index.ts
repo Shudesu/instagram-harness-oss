@@ -3,18 +3,18 @@ import { getClient } from "../client.js";
 
 export function registerAllResources(server: McpServer): void {
   server.resource(
-    "Account Summary",
-    "line-harness://account/summary",
+    "account-summary",
+    "instagram-harness://account/summary",
     async (_uri) => {
       const client = getClient();
-      const [friendCount, scenarios, tags] = await Promise.all([
-        client.friends.count(),
+      const [followerCount, scenarios, tags] = await Promise.all([
+        client.followers.count(),
         client.scenarios.list(),
         client.tags.list(),
       ]);
 
       const summary = {
-        friends: friendCount,
+        followers: followerCount,
         activeScenarios: scenarios.filter(
           (s: { isActive: boolean }) => s.isActive,
         ).length,
@@ -28,7 +28,7 @@ export function registerAllResources(server: McpServer): void {
       return {
         contents: [
           {
-            uri: "line-harness://account/summary",
+            uri: "instagram-harness://account/summary",
             mimeType: "application/json",
             text: JSON.stringify(summary, null, 2),
           },
@@ -38,8 +38,8 @@ export function registerAllResources(server: McpServer): void {
   );
 
   server.resource(
-    "Active Scenarios",
-    "line-harness://scenarios/active",
+    "active-scenarios",
+    "instagram-harness://scenarios/active",
     async (_uri) => {
       const client = getClient();
       const scenarios = await client.scenarios.list();
@@ -50,7 +50,7 @@ export function registerAllResources(server: McpServer): void {
       return {
         contents: [
           {
-            uri: "line-harness://scenarios/active",
+            uri: "instagram-harness://scenarios/active",
             mimeType: "application/json",
             text: JSON.stringify(active, null, 2),
           },
@@ -60,8 +60,8 @@ export function registerAllResources(server: McpServer): void {
   );
 
   server.resource(
-    "Tags List",
-    "line-harness://tags/list",
+    "tags-list",
+    "instagram-harness://tags/list",
     async (_uri) => {
       const client = getClient();
       const tags = await client.tags.list();
@@ -69,7 +69,7 @@ export function registerAllResources(server: McpServer): void {
       return {
         contents: [
           {
-            uri: "line-harness://tags/list",
+            uri: "instagram-harness://tags/list",
             mimeType: "application/json",
             text: JSON.stringify(tags, null, 2),
           },

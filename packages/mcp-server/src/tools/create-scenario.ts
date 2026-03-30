@@ -1,18 +1,18 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { parseDelay } from "@line-harness/sdk";
+import { parseDelay } from "@instagram-harness/sdk";
 import { getClient } from "../client.js";
 
 export function registerCreateScenario(server: McpServer): void {
   server.tool(
     "create_scenario",
-    "Create a step delivery scenario with multiple message steps. Each step has a delay and message content. Scenarios auto-trigger on friend_add, tag_added, or manual enrollment.",
+    "Create a step delivery scenario with multiple message steps. Each step has a delay and message content. Scenarios auto-trigger on dm_keyword (DM contains keyword), comment (post comment received), tag_added, or manual enrollment.",
     {
       name: z.string().describe("Scenario name"),
       triggerType: z
         .enum(["friend_add", "tag_added", "manual"])
         .describe(
-          "When to start: 'friend_add' on new friends, 'tag_added' when a tag is applied, 'manual' for explicit enrollment",
+          "When to start: 'tag_added' when a tag is applied, 'manual' for explicit enrollment, 'friend_add' for new follower (use dm_keyword/comment triggers via the webhook route for auto DM flows)",
         ),
       triggerTagId: z
         .string()
@@ -36,7 +36,7 @@ export function registerCreateScenario(server: McpServer): void {
       accountId: z
         .string()
         .optional()
-        .describe("LINE account ID (uses default if omitted)"),
+        .describe("Instagram account ID (uses default if omitted)"),
     },
     async ({ name, triggerType, triggerTagId, steps, accountId }) => {
       try {
@@ -101,7 +101,6 @@ export function registerCreateScenario(server: McpServer): void {
           name,
           triggerType,
           triggerTagId,
-          lineAccountId: accountId,
         });
 
         try {

@@ -5,9 +5,9 @@ import {
   createBroadcast,
   updateBroadcast,
   deleteBroadcast,
-} from '@line-crm/db';
-import type { Broadcast as DbBroadcast, BroadcastMessageType, BroadcastTargetType } from '@line-crm/db';
-import { LineClient } from '@line-crm/line-sdk';
+} from '@instagram-harness/db';
+import type { Broadcast as DbBroadcast, BroadcastMessageType, BroadcastTargetType } from '@instagram-harness/db';
+import { InstagramClient } from '@instagram-harness/ig-sdk';
 import { processBroadcastSend } from '../services/broadcast.js';
 import { processSegmentSend } from '../services/segment-send.js';
 import type { SegmentCondition } from '../services/segment-query.js';
@@ -197,8 +197,8 @@ broadcasts.post('/api/broadcasts/:id/send', async (c) => {
       return c.json({ success: false, error: 'Broadcast is already sent or sending' }, 400);
     }
 
-    const lineClient = new LineClient(c.env.LINE_CHANNEL_ACCESS_TOKEN);
-    await processBroadcastSend(c.env.DB, lineClient, id, c.env.WORKER_URL);
+    const igClient = new InstagramClient({ accessToken: c.env.IG_ACCESS_TOKEN, igUserId: c.env.IG_USER_ID });
+    await processBroadcastSend(c.env.DB, igClient, id, c.env.WORKER_URL);
 
     const result = await getBroadcastById(c.env.DB, id);
     return c.json({ success: true, data: result ? serializeBroadcast(result) : null });
@@ -231,8 +231,8 @@ broadcasts.post('/api/broadcasts/:id/send-segment', async (c) => {
       );
     }
 
-    const lineClient = new LineClient(c.env.LINE_CHANNEL_ACCESS_TOKEN);
-    await processSegmentSend(c.env.DB, lineClient, id, body.conditions);
+    const igClient = new InstagramClient({ accessToken: c.env.IG_ACCESS_TOKEN, igUserId: c.env.IG_USER_ID });
+    await processSegmentSend(c.env.DB, igClient, id, body.conditions);
 
     const result = await getBroadcastById(c.env.DB, id);
     return c.json({ success: true, data: result ? serializeBroadcast(result) : null });

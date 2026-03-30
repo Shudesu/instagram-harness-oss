@@ -9,10 +9,9 @@ import {
   getScenarios,
   enrollFriendInScenario,
   jstNow,
-} from '@line-crm/db';
-import type { Friend as DbFriend, Tag as DbTag } from '@line-crm/db';
+} from '@instagram-harness/db';
+import type { Friend as DbFriend, Tag as DbTag } from '@instagram-harness/db';
 import { fireEvent } from '../services/event-bus.js';
-import { buildMessage } from '../services/step-delivery.js';
 import type { Env } from '../index.js';
 
 const friends = new Hono<Env>();
@@ -21,14 +20,13 @@ const friends = new Hono<Env>();
 function serializeFriend(row: DbFriend) {
   return {
     id: row.id,
-    lineUserId: row.line_user_id,
+    igsid: row.igsid || row.line_user_id,
+    username: row.username,
     displayName: row.display_name,
     pictureUrl: row.picture_url,
-    statusMessage: row.status_message,
     isFollowing: Boolean(row.is_following),
+    score: (row as unknown as Record<string, unknown>).score ?? 0,
     metadata: JSON.parse(row.metadata || '{}'),
-    refCode: (row as unknown as Record<string, unknown>).ref_code as string | null,
-    userId: row.user_id,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -319,26 +317,30 @@ friends.post('/api/friends/:id/messages', async (c) => {
       return c.json({ success: false, error: 'Friend not found' }, 404);
     }
 
-    const { LineClient } = await import('@line-crm/line-sdk');
-    // Resolve access token from friend's account (multi-account support)
-    let accessToken = c.env.LINE_CHANNEL_ACCESS_TOKEN;
-    if ((friend as unknown as Record<string, unknown>).line_account_id) {
-      const { getLineAccountById } = await import('@line-crm/db');
-      const account = await getLineAccountById(db, (friend as unknown as Record<string, unknown>).line_account_id as string);
-      if (account) accessToken = account.channel_access_token;
-    }
-    const lineClient = new LineClient(accessToken);
+    const { InstagramClient } = await import('@instagram-harness/ig-sdk');
+    const igClient = new InstagramClient({ accessToken: c.env.IG_ACCESS_TOKEN, igUserId: c.env.IG_USER_ID });
     const messageType = body.messageType ?? 'text';
+    const igsid = (friend as unknown as Record<string, unknown>).igsid as string
+      || friend.line_user_id;
 
-    // Auto-wrap URLs with tracking links (text with URLs → Flex with button)
-    const { autoTrackContent } = await import('../services/auto-track.js');
-    const tracked = await autoTrackContent(
-      db, messageType, body.content,
-      c.env.WORKER_URL || new URL(c.req.url).origin,
-    );
-
-    const message = buildMessage(tracked.messageType, tracked.content, body.altText);
-    await lineClient.pushMessage(friend.line_user_id, [message]);
+    // Send via IG Messaging API
+    const parsed = JSON.parse(body.content) as Record<string, unknown>;
+    switch (messageType) {
+      case 'text':
+        await igClient.sendText(igsid, parsed.text as string || body.content);
+        break;
+      case 'image':
+        await igClient.sendImage(igsid, parsed.url as string);
+        break;
+      case 'template':
+        await igClient.sendGenericTemplate(igsid, parsed.elements as never[]);
+        break;
+      case 'quick_reply':
+        await igClient.sendQuickReply(igsid, parsed.text as string, parsed.quick_replies as never[]);
+        break;
+      default:
+        await igClient.sendText(igsid, typeof parsed.text === 'string' ? parsed.text : body.content);
+    }
 
     // Log outgoing message
     const logId = crypto.randomUUID();

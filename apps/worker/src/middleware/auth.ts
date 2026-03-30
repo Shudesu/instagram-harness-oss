@@ -1,9 +1,9 @@
 import type { Context, Next } from 'hono';
-import { getStaffByApiKey } from '@line-crm/db';
+import { getStaffByApiKey } from '@instagram-harness/db';
 import type { Env } from '../index.js';
 
 export async function authMiddleware(c: Context<Env>, next: Next): Promise<Response | void> {
-  // Skip auth for the LINE webhook endpoint — it uses signature verification instead
+  // Skip auth for the Instagram webhook endpoint — it uses signature verification instead
   // Skip auth for OpenAPI docs — public documentation
   const path = new URL(c.req.url).pathname;
   if (
@@ -12,14 +12,11 @@ export async function authMiddleware(c: Context<Env>, next: Next): Promise<Respo
     path === '/openapi.json' ||
     path === '/api/affiliates/click' ||
     path.startsWith('/t/') ||
-    path.startsWith('/r/') ||
     path.startsWith('/images/') ||
-    path.startsWith('/api/liff/') ||
-    path.startsWith('/auth/') ||
     path === '/api/integrations/stripe/webhook' ||
     path.match(/^\/api\/webhooks\/incoming\/[^/]+\/receive$/) ||
     path.match(/^\/api\/forms\/[^/]+\/submit$/) ||
-    path.match(/^\/api\/forms\/[^/]+$/) // GET form definition (public for LIFF)
+    path.match(/^\/api\/forms\/[^/]+$/)
   ) {
     return next();
   }

@@ -9,8 +9,8 @@ import {
   getUserFriends,
   getUserByEmail,
   getUserByPhone,
-} from '@line-crm/db';
-import type { User as DbUser } from '@line-crm/db';
+} from '@instagram-harness/db';
+import type { User as DbUser } from '@instagram-harness/db';
 import type { Env } from '../index.js';
 
 const users = new Hono<Env>();
@@ -137,7 +137,7 @@ users.get('/api/users/:id/accounts', async (c) => {
       success: true,
       data: friends.map((f) => ({
         id: f.id,
-        lineUserId: f.line_user_id,
+        igsid: (f as Record<string, unknown>).igsid || f.line_user_id,
         displayName: f.display_name,
         isFollowing: Boolean(f.is_following),
       })),

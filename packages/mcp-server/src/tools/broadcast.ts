@@ -6,7 +6,7 @@ import { autoTrackUrls } from "./auto-track-urls.js";
 export function registerBroadcast(server: McpServer): void {
   server.tool(
     "broadcast",
-    "Send a broadcast message to all friends, a specific tag group, or a filtered segment. Creates and immediately sends the broadcast.",
+    "Send a broadcast DM to all followers, a specific tag group, or a filtered segment. Creates and immediately sends the broadcast.",
     {
       title: z
         .string()
@@ -46,7 +46,7 @@ export function registerBroadcast(server: McpServer): void {
       accountId: z
         .string()
         .optional()
-        .describe("LINE account ID (uses default if omitted)"),
+        .describe("Instagram account ID (reserved for future multi-account support)"),
     },
     async ({
       title,
@@ -137,7 +137,6 @@ export function registerBroadcast(server: McpServer): void {
             messageType,
             messageContent: trackedContent,
             targetType: "all",
-            lineAccountId: accountId,
             altText,
           });
 
@@ -180,7 +179,6 @@ export function registerBroadcast(server: McpServer): void {
           targetType: targetType as "all" | "tag",
           targetTagId,
           scheduledAt,
-          lineAccountId: accountId,
           altText,
         });
 

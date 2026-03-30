@@ -4,7 +4,7 @@ import {
   getStripeEventByStripeId,
   createStripeEvent,
   jstNow,
-} from '@line-crm/db';
+} from '@instagram-harness/db';
 import type { Env } from '../index.js';
 
 const stripe = new Hono<Env>();
@@ -126,7 +126,7 @@ stripe.post('/api/integrations/stripe/webhook', async (c) => {
 
     // 決済成功時の自動処理
     if (body.type === 'payment_intent.succeeded' && friendId) {
-      const { applyScoring } = await import('@line-crm/db');
+      const { applyScoring } = await import('@instagram-harness/db');
       await applyScoring(db, friendId, 'purchase');
 
       // 自動タグ付け（product_idベース）

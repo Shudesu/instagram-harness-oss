@@ -1,13 +1,11 @@
-import { extractFlexAltText } from '../utils/flex-alt-text.js';
-
 /**
- * イベントバス — システム内イベントの発火と処理
+ * Event bus — fires system events and runs registered handlers.
  *
- * イベント発生時に以下を実行:
- * 1. アクティブな送信Webhookへ通知
- * 2. スコアリングルール適用
- * 3. 自動化ルール(IF-THEN)実行
- * 4. 通知ルール処理
+ * When an event occurs:
+ * 1. Active outgoing webhooks are notified
+ * 2. Scoring rules are applied
+ * 3. Automation rules (IF-THEN) are executed
+ * 4. Notification rules are processed
  */
 
 import {
@@ -22,9 +20,7 @@ import {
   enrollFriendInScenario,
   jstNow,
   getFriendScore,
-} from '@line-crm/db';
-import { LineClient } from '@line-crm/line-sdk';
-import type { Message } from '@line-crm/line-sdk';
+} from '@instagram-harness/db';
 import { sendAdConversions } from './ad-conversion.js';
 
 export interface EventPayload {
@@ -32,7 +28,6 @@ export interface EventPayload {
   eventData?: Record<string, unknown>;
   conversionEventName?: string;
   conversionValue?: number;
-  replyToken?: string;
 }
 
 /**
@@ -41,15 +36,13 @@ export interface EventPayload {
  * Execution is split into two sequential phases so that score_threshold
  * conditions in automation rules see the score already updated by this event:
  *
- *   Phase 1 (concurrent): outgoing webhooks + scoring
+ *   Phase 1 (concurrent): outgoing webhooks + scoring + ad conversions
  *   Phase 2 (concurrent): automations + notifications, with currentScore injected
  */
 export async function fireEvent(
   db: D1Database,
   eventType: string,
   payload: EventPayload,
-  lineAccessToken?: string,
-  lineAccountId?: string | null,
 ): Promise<void> {
   // Phase 1: fire webhooks, apply scoring rules, and ad conversion postback concurrently.
   const phase1: Promise<unknown>[] = [
@@ -76,12 +69,12 @@ export async function fireEvent(
 
   // Phase 2: evaluate automations and create notifications concurrently.
   await Promise.allSettled([
-    processAutomations(db, eventType, enrichedPayload, lineAccessToken, lineAccountId),
-    processNotifications(db, eventType, enrichedPayload, lineAccountId),
+    processAutomations(db, eventType, enrichedPayload),
+    processNotifications(db, eventType, enrichedPayload),
   ]);
 }
 
-/** 送信Webhookへの通知 */
+/** Send to outgoing webhooks */
 async function fireOutgoingWebhooks(
   db: D1Database,
   eventType: string,
@@ -99,7 +92,7 @@ async function fireOutgoingWebhooks(
 
         const headers: Record<string, string> = { 'Content-Type': 'application/json' };
 
-        // HMAC署名（シークレットがある場合）
+        // HMAC signature (if secret is configured)
         if (wh.secret) {
           const encoder = new TextEncoder();
           const key = await crypto.subtle.importKey(
@@ -118,7 +111,7 @@ async function fireOutgoingWebhooks(
 
         await fetch(wh.url, { method: 'POST', headers, body });
       } catch (err) {
-        console.error(`送信Webhook ${wh.id} への通知失敗:`, err);
+        console.error(`Outgoing webhook ${wh.id} failed:`, err);
       }
     }
   } catch (err) {
@@ -126,7 +119,7 @@ async function fireOutgoingWebhooks(
   }
 }
 
-/** スコアリングルール適用 */
+/** Apply scoring rules */
 async function processScoring(
   db: D1Database,
   eventType: string,
@@ -140,33 +133,26 @@ async function processScoring(
   }
 }
 
-/** 自動化ルール(IF-THEN)実行 */
+/** Execute automation rules (IF-THEN) */
 async function processAutomations(
   db: D1Database,
   eventType: string,
   payload: EventPayload,
-  lineAccessToken?: string,
-  lineAccountId?: string | null,
 ): Promise<void> {
   try {
-    const allAutomations = await getActiveAutomationsByEvent(db, eventType);
-    // Filter by account: match this account's automations + unassigned (backward compat)
-    const automations = allAutomations.filter(
-      (a) => !a.line_account_id || !lineAccountId || a.line_account_id === lineAccountId,
-    );
+    const automations = await getActiveAutomationsByEvent(db, eventType);
 
     for (const automation of automations) {
       const conditions = JSON.parse(automation.conditions) as Record<string, unknown>;
       const actions = JSON.parse(automation.actions) as Array<{ type: string; params: Record<string, string> }>;
 
-      // 条件チェック（簡易版: 条件が空なら常にマッチ）
       if (!matchConditions(conditions, payload)) continue;
 
       const results: Array<{ action: string; success: boolean; error?: string }> = [];
 
       for (const action of actions) {
         try {
-          await executeAction(db, action, payload, lineAccessToken);
+          await executeAction(db, action, payload);
           results.push({ action: action.type, success: true });
         } catch (err) {
           const errorMsg = err instanceof Error ? err.message : String(err);
@@ -190,15 +176,14 @@ async function processAutomations(
   }
 }
 
-/** 条件マッチング */
+/** Condition matching */
 function matchConditions(
   conditions: Record<string, unknown>,
   payload: EventPayload,
 ): boolean {
-  // 条件が空 → 常にマッチ
   if (Object.keys(conditions).length === 0) return true;
 
-  // score_threshold チェック
+  // score_threshold check
   if (conditions.score_threshold !== undefined && payload.eventData) {
     const currentScore = payload.eventData.currentScore as number | undefined;
     if (currentScore !== undefined && currentScore < (conditions.score_threshold as number)) {
@@ -206,12 +191,12 @@ function matchConditions(
     }
   }
 
-  // tag_id チェック
+  // tag_id check
   if (conditions.tag_id !== undefined && payload.eventData) {
     if (payload.eventData.tagId !== conditions.tag_id) return false;
   }
 
-  // keyword チェック（message_received イベント用）
+  // keyword check (for dm_received events)
   if (conditions.keyword !== undefined && payload.eventData) {
     const text = payload.eventData.text as string | undefined;
     if (!text || !text.includes(conditions.keyword as string)) return false;
@@ -220,12 +205,11 @@ function matchConditions(
   return true;
 }
 
-/** アクション実行 */
+/** Execute an automation action */
 async function executeAction(
   db: D1Database,
   action: { type: string; params: Record<string, string> },
   payload: EventPayload,
-  lineAccessToken?: string,
 ): Promise<void> {
   const friendId = payload.friendId;
   if (!friendId && action.type !== 'send_webhook') {
@@ -245,45 +229,6 @@ async function executeAction(
       await enrollFriendInScenario(db, friendId!, action.params.scenarioId);
       break;
 
-    case 'send_message': {
-      if (!lineAccessToken || !friendId) break;
-      const friend = await db
-        .prepare('SELECT line_user_id FROM friends WHERE id = ?')
-        .bind(friendId)
-        .first<{ line_user_id: string }>();
-      if (!friend) break;
-      const lineClient = new LineClient(lineAccessToken);
-      const msgType = action.params.messageType || 'text';
-      let msg: Message;
-      if (msgType === 'flex') {
-        const contents = JSON.parse(action.params.content);
-        msg = { type: 'flex', altText: action.params.altText || extractFlexAltText(contents), contents };
-      } else {
-        msg = { type: 'text', text: action.params.content };
-      }
-      // Prefer replyMessage (free) when replyToken is available
-      if (payload.replyToken) {
-        try {
-          await lineClient.replyMessage(payload.replyToken, [msg]);
-          // replyToken is single-use, clear it so subsequent actions fall back to push
-          payload.replyToken = undefined;
-        } catch (err: unknown) {
-          // Token-consumed/expired errors contain "400" or "Invalid reply token" in the message.
-          // Fall back to push only for those; re-throw other errors (5xx, validation).
-          const errMsg = err instanceof Error ? err.message : String(err);
-          const isTokenError = errMsg.includes('400') || errMsg.includes('Invalid reply token');
-          if (isTokenError) {
-            await lineClient.pushMessage(friend.line_user_id, [msg]);
-          } else {
-            throw err;
-          }
-        }
-      } else {
-        await lineClient.pushMessage(friend.line_user_id, [msg]);
-      }
-      break;
-    }
-
     case 'send_webhook': {
       const url = action.params.url;
       if (url) {
@@ -293,30 +238,6 @@ async function executeAction(
           body: JSON.stringify({ friendId, ...payload.eventData }),
         });
       }
-      break;
-    }
-
-    case 'switch_rich_menu': {
-      if (!lineAccessToken || !friendId) break;
-      const friend = await db
-        .prepare('SELECT line_user_id FROM friends WHERE id = ?')
-        .bind(friendId)
-        .first<{ line_user_id: string }>();
-      if (!friend) break;
-      const lineClient = new LineClient(lineAccessToken);
-      await lineClient.linkRichMenuToUser(friend.line_user_id, action.params.richMenuId);
-      break;
-    }
-
-    case 'remove_rich_menu': {
-      if (!lineAccessToken || !friendId) break;
-      const friend = await db
-        .prepare('SELECT line_user_id FROM friends WHERE id = ?')
-        .bind(friendId)
-        .first<{ line_user_id: string }>();
-      if (!friend) break;
-      const lineClient = new LineClient(lineAccessToken);
-      await lineClient.unlinkRichMenuFromUser(friend.line_user_id);
       break;
     }
 
@@ -337,26 +258,22 @@ async function executeAction(
     }
 
     default:
-      console.warn(`未知のアクションタイプ: ${action.type}`);
+      console.warn(`Unknown action type: ${action.type}`);
   }
 }
 
-/** 通知ルール処理 */
+/** Process notification rules */
 async function processNotifications(
   db: D1Database,
   eventType: string,
   payload: EventPayload,
-  lineAccountId?: string | null,
 ): Promise<void> {
   try {
-    const allRules = await getActiveNotificationRulesByEvent(db, eventType);
-    const rules = allRules.filter(
-      (r) => !r.line_account_id || !lineAccountId || r.line_account_id === lineAccountId,
-    );
+    const rules = await getActiveNotificationRulesByEvent(db, eventType);
 
     for (const rule of rules) {
       let channels: string[] = JSON.parse(rule.channels);
-      // Guard against double-encoded JSON strings (e.g. "\"[\\\"webhook\\\"]\"")
+      // Guard against double-encoded JSON strings
       if (typeof channels === 'string') channels = JSON.parse(channels);
 
       for (const channel of channels) {
@@ -368,13 +285,6 @@ async function processNotifications(
           channel,
           metadata: JSON.stringify(payload.eventData ?? {}),
         });
-
-        // Webhook通知チャネルの場合は即時配信
-        if (channel === 'webhook') {
-          // 送信Webhookと統合（既にfireOutgoingWebhooksで処理済み）
-        }
-        // email チャネルの場合はSendGrid等で送信（将来実装）
-        // dashboard チャネルの場合はDB記録のみ（上記createNotificationで完了）
       }
     }
   } catch (err) {

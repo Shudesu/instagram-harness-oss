@@ -7,8 +7,8 @@ import {
   deleteStaffMember,
   regenerateStaffApiKey,
   countActiveStaffByRole,
-} from '@line-crm/db';
-import type { StaffMember } from '@line-crm/db';
+} from '@instagram-harness/db';
+import type { StaffMember } from '@instagram-harness/db';
 import { requireRole } from '../middleware/role-guard.js';
 import type { Env } from '../index.js';
 

@@ -5,7 +5,7 @@ import { getClient } from "../client.js";
 export function registerManageTags(server: McpServer): void {
   server.tool(
     "manage_tags",
-    "List, create, or delete tags, and add/remove tags to/from friends. Supports batch operations on multiple friends.",
+    "List, create, or delete tags, and add/remove tags to/from followers. Supports batch operations on multiple followers.",
     {
       action: z.enum(["list", "create", "delete", "add", "remove"]).describe("Action to perform"),
       tagName: z
@@ -20,14 +20,14 @@ export function registerManageTags(server: McpServer): void {
         .string()
         .optional()
         .describe("Tag ID (for 'add' or 'remove' actions)"),
-      friendIds: z
+      followerIds: z
         .array(z.string())
         .optional()
         .describe(
-          "Friend IDs to add/remove the tag from (for 'add' or 'remove' actions)",
+          "Follower IDs to add/remove the tag from (for 'add' or 'remove' actions)",
         ),
     },
-    async ({ action, tagName, tagColor, tagId, friendIds }) => {
+    async ({ action, tagName, tagColor, tagId, followerIds }) => {
       try {
         const client = getClient();
 
@@ -64,17 +64,17 @@ export function registerManageTags(server: McpServer): void {
 
         if (!tagId)
           throw new Error("tagId is required for add/remove actions");
-        if (!friendIds?.length)
-          throw new Error("friendIds is required for add/remove actions");
+        if (!followerIds?.length)
+          throw new Error("followerIds is required for add/remove actions");
 
-        const results: Array<{ friendId: string; status: string }> = [];
-        for (const friendId of friendIds) {
+        const results: Array<{ followerId: string; status: string }> = [];
+        for (const followerId of followerIds) {
           if (action === "add") {
-            await client.friends.addTag(friendId, tagId);
+            await client.followers.addTag(followerId, tagId);
           } else {
-            await client.friends.removeTag(friendId, tagId);
+            await client.followers.removeTag(followerId, tagId);
           }
-          results.push({ friendId, status: "ok" });
+          results.push({ followerId, status: "ok" });
         }
 
         return {

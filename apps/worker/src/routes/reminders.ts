@@ -11,7 +11,7 @@ import {
   enrollFriendInReminder,
   getFriendReminders,
   cancelFriendReminder,
-} from '@line-crm/db';
+} from '@instagram-harness/db';
 import type { Env } from '../index.js';
 
 const reminders = new Hono<Env>();

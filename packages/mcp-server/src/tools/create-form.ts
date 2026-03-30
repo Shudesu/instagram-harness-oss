@@ -36,11 +36,11 @@ export function registerCreateForm(server: McpServer): void {
       saveToMetadata: z
         .boolean()
         .default(true)
-        .describe("Save form responses to friend metadata"),
+        .describe("Save form responses to follower metadata"),
       accountId: z
         .string()
         .optional()
-        .describe("LINE account ID (uses default if omitted)"),
+        .describe("Instagram account ID (reserved for future use)"),
     },
     async ({
       name,

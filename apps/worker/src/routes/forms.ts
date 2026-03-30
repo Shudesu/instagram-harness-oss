@@ -8,10 +8,10 @@ import {
   getFormSubmissions,
   createFormSubmission,
   jstNow,
-} from '@line-crm/db';
-import { getFriendByLineUserId, getFriendById } from '@line-crm/db';
-import { addTagToFriend, enrollFriendInScenario } from '@line-crm/db';
-import type { Form as DbForm, FormSubmission as DbFormSubmission } from '@line-crm/db';
+} from '@instagram-harness/db';
+import { getFriendByLineUserId, getFriendById } from '@instagram-harness/db';
+import { addTagToFriend, enrollFriendInScenario } from '@instagram-harness/db';
+import type { Form as DbForm, FormSubmission as DbFormSubmission } from '@instagram-harness/db';
 import type { Env } from '../index.js';
 
 const forms = new Hono<Env>();
@@ -178,7 +178,7 @@ forms.get('/api/forms/:id/submissions', async (c) => {
   }
 });
 
-// POST /api/forms/:id/submit — submit form (public, used by LIFF)
+// POST /api/forms/:id/submit — submit form (public)
 forms.post('/api/forms/:id/submit', async (c) => {
   try {
     const formId = c.req.param('id');
@@ -267,72 +267,53 @@ forms.post('/api/forms/:id/submit', async (c) => {
         sideEffects.push(enrollFriendInScenario(db, friendId, form.on_submit_scenario_id));
       }
 
-      // Send confirmation message with submitted data back to user
+      // Send confirmation message via IG DM
       sideEffects.push(
         (async () => {
           console.log('Form reply: starting for friendId', friendId);
           const friend = await getFriendById(db, friendId!);
-          if (!friend?.line_user_id) { console.log('Form reply: no line_user_id'); return; }
-          console.log('Form reply: sending to', friend.line_user_id);
-          const { LineClient } = await import('@line-crm/line-sdk');
-          // Resolve access token from friend's account (multi-account support)
-          let accessToken = c.env.LINE_CHANNEL_ACCESS_TOKEN;
-          if ((friend as unknown as Record<string, unknown>).line_account_id) {
-            const { getLineAccountById } = await import('@line-crm/db');
-            const account = await getLineAccountById(db, (friend as unknown as Record<string, unknown>).line_account_id as string);
-            if (account) accessToken = account.channel_access_token;
-          }
-          const lineClient = new LineClient(accessToken);
-          const { buildMessage, expandVariables } = await import('../services/step-delivery.js');
-          const apiOrigin = new URL(c.req.url).origin;
-          const friendData = {
-            id: friend.id,
-            display_name: friend.display_name,
-            user_id: (friend as unknown as Record<string, string | null>).user_id,
-            ref_code: (friend as unknown as Record<string, string | null>).ref_code,
-          };
+          if (!friend) { console.log('Form reply: friend not found'); return; }
+          const igsid = (friend as unknown as Record<string, unknown>).igsid as string
+            || friend.line_user_id;
+          if (!igsid) { console.log('Form reply: no igsid'); return; }
+          console.log('Form reply: sending to', igsid);
+          const { InstagramClient } = await import('@instagram-harness/ig-sdk');
+          const igClient = new InstagramClient({ accessToken: c.env.IG_ACCESS_TOKEN, igUserId: c.env.IG_USER_ID });
 
-          // Build diagnostic result Flex card showing their answers
+          // Build summary text from answers
           const entries = Object.entries(submissionData as Record<string, unknown>);
-          const answerRows = entries.map(([key, value]) => {
+          const lines = entries.map(([key, value]) => {
             const field = form.fields ? (JSON.parse(form.fields) as Array<{ name: string; label: string }>).find((f: { name: string }) => f.name === key) : null;
             const label = field?.label || key;
             const val = Array.isArray(value) ? value.join(', ') : (value !== null && value !== undefined && value !== '') ? String(value) : '-';
-            return {
-              type: 'box' as const, layout: 'vertical' as const, margin: 'md' as const,
-              contents: [
-                { type: 'text' as const, text: label, size: 'xxs' as const, color: '#64748b' },
-                { type: 'text' as const, text: val, size: 'sm' as const, color: '#1e293b', weight: 'bold' as const, wrap: true },
-              ],
-            };
+            return `${label}: ${val}`;
           });
 
-          const resultFlex = {
-            type: 'bubble', size: 'giga',
-            header: {
-              type: 'box', layout: 'vertical',
-              contents: [
-                { type: 'text', text: '診断結果', size: 'lg', weight: 'bold', color: '#1e293b' },
-                { type: 'text', text: `${friend.display_name || ''}さんの回答`, size: 'xs', color: '#64748b', margin: 'sm' },
-              ],
-              paddingAll: '20px', backgroundColor: '#f0fdf4',
-            },
-            body: {
-              type: 'box', layout: 'vertical',
-              contents: answerRows,
-              paddingAll: '20px',
-            },
-          };
+          const summaryText = `Form submitted!\n\n${lines.join('\n')}`;
+          await igClient.sendText(igsid, summaryText);
 
-          const messages = [buildMessage('flex', JSON.stringify(resultFlex))];
-
-          // If form has a custom on_submit_message, send it AFTER the diagnostic result
+          // If form has a custom on_submit_message, send it
           if (form.on_submit_message_type && form.on_submit_message_content) {
-            const expanded = expandVariables(form.on_submit_message_content, friendData, apiOrigin);
-            messages.push(buildMessage(form.on_submit_message_type, expanded));
+            const { expandVariables } = await import('../services/step-delivery.js');
+            const friendData = {
+              id: friend!.id,
+              display_name: friend!.display_name,
+            };
+            const expanded = expandVariables(form.on_submit_message_content, friendData);
+            const msgType = form.on_submit_message_type as string;
+            try {
+              const parsed = JSON.parse(expanded) as Record<string, unknown>;
+              if (msgType === 'text') {
+                await igClient.sendText(igsid, parsed.text as string || expanded);
+              } else if (msgType === 'image') {
+                await igClient.sendImage(igsid, parsed.url as string);
+              } else {
+                await igClient.sendText(igsid, expanded);
+              }
+            } catch {
+              await igClient.sendText(igsid, expanded);
+            }
           }
-
-          await lineClient.pushMessage(friend.line_user_id, messages);
         })(),
       );
 

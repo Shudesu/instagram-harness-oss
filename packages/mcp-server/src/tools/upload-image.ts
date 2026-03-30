@@ -5,7 +5,7 @@ import { getClient } from "../client.js";
 export function registerUploadImage(server: McpServer): void {
   server.tool(
     "upload_image",
-    "Upload an image to get a public URL for use in LINE messages (Flex Message hero images, image messages, etc.). Accepts base64-encoded image data. Returns public URL.",
+    "Upload an image to get a public URL for use in Instagram DMs and broadcasts. Accepts base64-encoded image data. Returns public URL.",
     {
       data: z.string().describe("Base64-encoded image data (with or without data:image/...;base64, prefix)"),
       mimeType: z

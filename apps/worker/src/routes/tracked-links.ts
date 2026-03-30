@@ -7,9 +7,9 @@ import {
   recordLinkClick,
   getLinkClicks,
   getFriendByLineUserId,
-} from '@line-crm/db';
-import { addTagToFriend, enrollFriendInScenario } from '@line-crm/db';
-import type { TrackedLink } from '@line-crm/db';
+} from '@instagram-harness/db';
+import { addTagToFriend, enrollFriendInScenario } from '@instagram-harness/db';
+import type { TrackedLink } from '@instagram-harness/db';
 import type { Env } from '../index.js';
 
 const trackedLinks = new Hono<Env>();
@@ -208,19 +208,10 @@ trackedLinks.get('/t/:linkId', async (c) => {
 
   const useAppRedirect = isAppLinkDomain(link.original_url);
 
-  // If no user ID yet, check if this is LINE's in-app browser → redirect to LIFF for identification
-  // Skip LIFF redirect for app-link domains (they'll come from Safari via externalBrowser)
-  const ua = c.req.header('user-agent') || '';
-  const isLineApp = /\bLine\b/i.test(ua);
-  if (!useAppRedirect && !lineUserId && !friendId && isLineApp && c.env.LIFF_URL) {
-    const directUrl = `${c.env.WORKER_URL || new URL(c.req.url).origin}/t/${linkId}`;
-    const liffRedirect = `${c.env.LIFF_URL}?redirect=${encodeURIComponent(directUrl)}`;
-    return c.redirect(liffRedirect, 302);
-  }
-
-  // Resolve friendId from LINE user ID if provided
+  // Resolve friendId from IGSID if provided
   if (!friendId && lineUserId) {
-    const friend = await getFriendByLineUserId(c.env.DB, lineUserId);
+    const { getFriendByIgsid } = await import('@instagram-harness/db');
+    const friend = await getFriendByIgsid(c.env.DB, lineUserId);
     if (friend) {
       friendId = friend.id;
     }

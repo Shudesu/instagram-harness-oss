@@ -1,11 +1,11 @@
-import type { LineHarness } from "@line-harness/sdk";
+import type { InstagramHarness } from "@instagram-harness/sdk";
 
 /**
  * Recursively find all URI action URLs in a Flex Message object,
  * create tracked links for each, and replace with tracking URLs.
  */
 export async function autoTrackUrls(
-  client: LineHarness,
+  client: InstagramHarness,
   messageContent: string,
   messageType: string,
   title: string,

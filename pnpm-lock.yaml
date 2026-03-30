@@ -122,7 +122,7 @@ importers:
 
   packages/mcp-server:
     dependencies:
-      '@line-harness/sdk':
+      '@instagram-harness/sdk':
         specifier: workspace:*
         version: link:../sdk
       '@modelcontextprotocol/sdk':

@@ -11,7 +11,7 @@ import {
   updateCalendarBookingEventId,
   getBookingsInRange,
   toJstString,
-} from '@line-crm/db';
+} from '@instagram-harness/db';
 import { GoogleCalendarClient } from '../services/google-calendar.js';
 import type { Env } from '../index.js';
 

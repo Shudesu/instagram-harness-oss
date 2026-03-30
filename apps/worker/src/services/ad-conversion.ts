@@ -11,7 +11,7 @@ import {
   logAdConversion,
   type AdPlatformConfig,
   type RefTracking,
-} from '@line-crm/db';
+} from '@instagram-harness/db';
 
 export async function sendAdConversions(
   db: D1Database,

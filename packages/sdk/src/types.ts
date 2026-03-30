@@ -6,6 +6,12 @@ export interface LineHarnessConfig {
   lineAccountId?: string  // default account for multi-account setups
 }
 
+export interface InstagramHarnessConfig {
+  apiUrl: string
+  apiKey: string
+  timeout?: number  // default: 30000ms
+}
+
 // ─── API Response ───────────────────────────────────────
 // HttpClient throws on non-2xx, so SDK consumers always receive the success case
 export interface ApiResponse<T> {
@@ -406,6 +412,101 @@ export interface StepDefinition {
   delay: string
   type: MessageType
   content: string
+}
+
+// ─── Follower ───────────────────────────────────────────
+export interface Follower {
+  id: string
+  igUserId: string
+  username: string | null
+  name: string | null
+  profilePicUrl: string | null
+  isFollowing: boolean
+  metadata: Record<string, unknown>
+  tags: Tag[]
+  createdAt: string
+  updatedAt: string
+}
+
+export interface FollowerListParams {
+  page?: number
+  pageSize?: number
+  tagId?: number
+  search?: string
+}
+
+// ─── Comment Rules ──────────────────────────────────────
+export type CommentRuleTrigger = 'keyword' | 'any_comment'
+export type CommentRuleAction = 'send_dm' | 'add_tag' | 'enroll_scenario'
+
+export interface CommentRule {
+  id: string
+  name: string
+  postId: string | null
+  triggerType: CommentRuleTrigger
+  keywords: string[]
+  action: CommentRuleAction
+  actionValue: string | null
+  replyComment: string | null
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateCommentRuleInput {
+  name: string
+  postId?: string | null
+  triggerType: CommentRuleTrigger
+  keywords?: string[]
+  action: CommentRuleAction
+  actionValue?: string | null
+  replyComment?: string | null
+  isActive?: boolean
+}
+
+export interface UpdateCommentRuleInput {
+  name?: string
+  postId?: string | null
+  triggerType?: CommentRuleTrigger
+  keywords?: string[]
+  action?: CommentRuleAction
+  actionValue?: string | null
+  replyComment?: string | null
+  isActive?: boolean
+}
+
+// ─── Outgoing Webhooks ──────────────────────────────────
+/** Event names emitted by the worker's fireEvent() function */
+export type WebhookEvent = 'dm_received' | 'comment_received' | 'tag_change' | 'postback' | 'cv_fire' | 'purchase'
+
+export interface OutgoingWebhook {
+  id: string
+  name: string
+  url: string
+  /** Subscribed event types (matches worker field `eventTypes`) */
+  eventTypes: WebhookEvent[]
+  secret: string | null
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateOutgoingWebhookInput {
+  name: string
+  url: string
+  /** Event types to subscribe to */
+  eventTypes: WebhookEvent[]
+  secret?: string | null
+  isActive?: boolean
+}
+
+export interface UpdateOutgoingWebhookInput {
+  name?: string
+  url?: string
+  /** Event types to subscribe to */
+  eventTypes?: WebhookEvent[]
+  secret?: string | null
+  isActive?: boolean
 }
 
 // ─── Images ─────────────────────────────────────────────

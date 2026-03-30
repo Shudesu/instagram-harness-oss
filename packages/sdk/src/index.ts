@@ -1,29 +1,29 @@
-export { LineHarness } from './client.js'
-export { LineHarnessError } from './errors.js'
+export { InstagramHarness } from './client.js'
+export { InstagramHarnessError } from './errors.js'
 export { parseDelay } from './delay.js'
 
 // Resource classes (for advanced usage / type narrowing)
-export { FriendsResource } from './resources/friends.js'
+export { FollowersResource } from './resources/followers.js'
 export { TagsResource } from './resources/tags.js'
 export { ScenariosResource } from './resources/scenarios.js'
 export { BroadcastsResource } from './resources/broadcasts.js'
-export { RichMenusResource } from './resources/rich-menus.js'
+export { CommentRulesResource } from './resources/comment-rules.js'
+export { OutgoingWebhooksResource } from './resources/outgoing-webhooks.js'
 export { TrackedLinksResource } from './resources/tracked-links.js'
 export { FormsResource } from './resources/forms.js'
-export { AdPlatformsResource } from './resources/ad-platforms.js'
 export { StaffResource } from './resources/staff.js'
 export { ImagesResource } from './resources/images.js'
 
 // All types
 export type {
-  LineHarnessConfig,
+  InstagramHarnessConfig,
   ApiResponse,
   PaginatedData,
   ScenarioTriggerType,
   MessageType,
   BroadcastStatus,
-  Friend,
-  FriendListParams,
+  Follower,
+  FollowerListParams,
   Tag,
   CreateTagInput,
   Scenario,
@@ -41,11 +41,15 @@ export type {
   SegmentRule,
   SegmentCondition,
   StepDefinition,
-  RichMenu,
-  RichMenuBounds,
-  RichMenuAction,
-  RichMenuArea,
-  CreateRichMenuInput,
+  CommentRule,
+  CreateCommentRuleInput,
+  UpdateCommentRuleInput,
+  CommentRuleTrigger,
+  CommentRuleAction,
+  OutgoingWebhook,
+  CreateOutgoingWebhookInput,
+  UpdateOutgoingWebhookInput,
+  WebhookEvent,
   TrackedLink,
   LinkClick,
   TrackedLinkWithClicks,
@@ -63,10 +67,3 @@ export type {
   UploadedImage,
   UploadImageInput,
 } from './types.js'
-
-export type {
-  AdPlatform,
-  AdConversionLog,
-  CreateAdPlatformInput,
-  UpdateAdPlatformInput,
-} from './resources/ad-platforms.js'
