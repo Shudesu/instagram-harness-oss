@@ -12,9 +12,9 @@
   },
   "dependencies": {
     "hono": "^4.6.0",
-    "@line-crm/db": "workspace:*",
-    "@line-crm/line-sdk": "workspace:*",
-    "@line-crm/shared": "workspace:*"
+    "@instagram-harness/db": "workspace:*",
+    "@instagram-harness/ig-sdk": "workspace:*",
+    "@instagram-harness/shared": "workspace:*"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.0.0",

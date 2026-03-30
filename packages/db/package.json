@@ -1,7 +1,7 @@
 {
-  "name": "@line-crm/db",
+  "name": "@instagram-harness/db",
   "version": "0.2.0",
-  "description": "D1 database query helpers for LINE CRM",
+  "description": "D1 database query helpers for Instagram Harness",
   "license": "MIT",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
