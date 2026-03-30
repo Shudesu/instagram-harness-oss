@@ -3,8 +3,8 @@ import './globals.css'
 import AppShell from '@/components/app-shell'
 
 export const metadata: Metadata = {
-  title: 'LINE CRM 管理画面',
-  description: 'LINE公式アカウント CRM 管理画面',
+  title: 'Instagram Harness 管理画面',
+  description: 'Instagram DM オートメーション管理画面',
 }
 
 export default function RootLayout({
