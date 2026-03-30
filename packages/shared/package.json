@@ -1,7 +1,7 @@
 {
-  "name": "@line-crm/shared",
-  "version": "0.2.0",
-  "description": "Shared types and constants for LINE CRM",
+  "name": "@instagram-harness/shared",
+  "version": "0.1.0",
+  "description": "Shared types for Instagram Harness",
   "license": "MIT",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -25,8 +25,8 @@
     "typescript": "^5.7.0"
   },
   "keywords": [
-    "line",
-    "crm",
+    "instagram",
+    "harness",
     "types"
   ]
 }
