@@ -4,15 +4,15 @@ compatibility_date = "2024-12-01"
 workers_dev = true
 account_id = "c40947ff58a767be74a53be79a89d68a"
 
-# Static assets (admin dashboard) served by Workers Assets
-# SPA fallback ensures all non-API paths serve index.html
-[assets]
-not_found_handling = "single-page-application"
+# Static assets disabled for now — admin UI deployed separately
+# [assets]
+# directory = "./public"
+# not_found_handling = "single-page-application"
 
 [[d1_databases]]
 binding = "DB"
 database_name = "instagram-harness"
-database_id = "7efe7c20-01ae-4d65-be08-0d7b4202e8a1"
+database_id = "c600563c-addb-46e5-87ef-ca1072d4fc66"
 
 [[r2_buckets]]
 binding = "IMAGES"
