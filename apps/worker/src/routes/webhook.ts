@@ -49,6 +49,9 @@ webhook.post('/webhook', async (c) => {
     // Don't reject — process anyway during development mode
   }
 
+  // DEBUG: log raw webhook body
+  console.log('Webhook received, raw body:', rawBody.substring(0, 500));
+
   let body: WebhookPayload;
   try {
     body = JSON.parse(rawBody) as WebhookPayload;
@@ -57,7 +60,10 @@ webhook.post('/webhook', async (c) => {
     return c.json({ status: 'ok' }, 200);
   }
 
+  console.log('Webhook object:', body.object, 'entries:', body.entry?.length ?? 0);
+
   if (body.object !== 'instagram') {
+    console.log('Skipping non-instagram webhook, object:', body.object);
     return c.json({ status: 'ok' }, 200);
   }
 
