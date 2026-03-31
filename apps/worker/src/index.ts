@@ -92,6 +92,25 @@ app.route('/', adPlatforms);
 app.route('/', staff);
 app.route('/', images);
 
+// Data deletion callback (required for Meta app)
+app.post('/data-deletion', async (c) => {
+  const body = await c.req.json<{ signed_request?: string }>();
+  const confirmationCode = crypto.randomUUID();
+  return c.json({
+    url: `https://instagram-harness.noda-c40.workers.dev/data-deletion?code=${confirmationCode}`,
+    confirmation_code: confirmationCode,
+  });
+});
+
+app.get('/data-deletion', (c) => {
+  const code = c.req.query('code');
+  return c.html(`<!DOCTYPE html><html><head><title>Data Deletion</title></head><body>
+<h1>Data Deletion Request</h1>
+<p>Confirmation code: ${code ?? 'N/A'}</p>
+<p>Your data has been scheduled for deletion.</p>
+</body></html>`);
+});
+
 // Privacy policy page (required for Meta app public mode)
 app.get('/privacy', (c) => {
   return c.html(`<!DOCTYPE html><html><head><title>Privacy Policy - Instagram Harness</title></head><body>
