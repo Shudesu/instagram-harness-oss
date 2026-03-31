@@ -92,6 +92,17 @@ app.route('/', adPlatforms);
 app.route('/', staff);
 app.route('/', images);
 
+// Privacy policy page (required for Meta app public mode)
+app.get('/privacy', (c) => {
+  return c.html(`<!DOCTYPE html><html><head><title>Privacy Policy - Instagram Harness</title></head><body>
+<h1>Privacy Policy</h1>
+<p>Instagram Harness is a self-hosted Instagram DM automation tool. Each user deploys their own instance.</p>
+<p>This instance processes Instagram messages and comments solely for the account owner's automation purposes.</p>
+<p>No data is shared with third parties. All data is stored in the account owner's Cloudflare D1 database.</p>
+<p>Contact: info@aiagent-inc.com</p>
+</body></html>`);
+});
+
 // 404 fallback — API paths return JSON 404, everything else serves from static assets (admin)
 app.notFound(async (c) => {
   const path = new URL(c.req.url).pathname;
