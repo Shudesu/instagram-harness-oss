@@ -3,6 +3,7 @@ export interface WebhookEntry {
   id: string;
   time: number;
   messaging?: MessagingEvent[];
+  standby?: MessagingEvent[];
   changes?: ChangeEvent[];
 }
 

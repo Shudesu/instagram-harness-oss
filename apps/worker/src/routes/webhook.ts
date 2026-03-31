@@ -75,14 +75,13 @@ webhook.post('/webhook', async (c) => {
   // Process asynchronously — Meta expects quick response
   const processingPromise = (async () => {
     for (const entry of body.entry) {
-      // Handle DM messaging events
-      if (entry.messaging) {
-        for (const event of entry.messaging) {
-          try {
-            await handleMessagingEvent(db, igClient, event, c.env.WORKER_URL);
-          } catch (err) {
-            console.error('Error handling messaging event:', err);
-          }
+      // Handle DM messaging events (messaging = primary, standby = secondary receiver)
+      const messagingEvents = entry.messaging ?? entry.standby ?? [];
+      for (const event of messagingEvents) {
+        try {
+          await handleMessagingEvent(db, igClient, event, c.env.WORKER_URL);
+        } catch (err) {
+          console.error('Error handling messaging event:', err);
         }
       }
 
