@@ -112,7 +112,7 @@ app.get('/data-deletion', (c) => {
 });
 
 // Privacy policy page (required for Meta app public mode)
-app.get('/privacy', (c) => {
+app.get('/privacy-policy', (c) => {
   return c.html(`<!DOCTYPE html><html><head><title>Privacy Policy - Instagram Harness</title></head><body>
 <h1>Privacy Policy</h1>
 <p>Instagram Harness is a self-hosted Instagram DM automation tool. Each user deploys their own instance.</p>
