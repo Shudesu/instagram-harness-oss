@@ -111,9 +111,9 @@ export async function getLinkClicks(
 ): Promise<LinkClickWithFriend[]> {
   const result = await db
     .prepare(
-      `SELECT lc.*, f.display_name as friend_display_name
+      `SELECT lc.*, f.name as friend_display_name
        FROM link_clicks lc
-       LEFT JOIN friends f ON f.id = lc.friend_id
+       LEFT JOIN followers f ON f.id = lc.friend_id
        WHERE lc.tracked_link_id = ?
        ORDER BY lc.clicked_at DESC`,
     )

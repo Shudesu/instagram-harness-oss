@@ -137,9 +137,8 @@ users.get('/api/users/:id/accounts', async (c) => {
       success: true,
       data: friends.map((f) => ({
         id: f.id,
-        igsid: (f as Record<string, unknown>).igsid || f.line_user_id,
-        displayName: f.display_name,
-        isFollowing: Boolean(f.is_following),
+        igsid: f.igsid,
+        displayName: f.name,
       })),
     });
   } catch (err) {

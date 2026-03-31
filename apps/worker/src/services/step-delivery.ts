@@ -78,7 +78,7 @@ async function processSingleDelivery(
   igClient: InstagramClient,
   fs: {
     id: string;
-    friend_id: string;
+    follower_id: string;
     scenario_id: string;
     current_step_order: number;
     status: string;
@@ -86,8 +86,8 @@ async function processSingleDelivery(
   },
   _workerUrl?: string,
 ): Promise<void> {
-  const friend = await getFriendById(db, fs.friend_id);
-  if (!friend || !friend.is_following) {
+  const friend = await getFriendById(db, fs.follower_id);
+  if (!friend) {
     await completeFriendScenario(db, fs.id);
     return;
   }
@@ -109,7 +109,7 @@ async function processSingleDelivery(
 
   // Check step condition before sending
   if (currentStep.condition_type) {
-    const conditionMet = await evaluateCondition(db, fs.friend_id, currentStep);
+    const conditionMet = await evaluateCondition(db, fs.follower_id, currentStep);
     if (!conditionMet) {
       if (currentStep.next_step_on_false !== null && currentStep.next_step_on_false !== undefined) {
         const jumpStep = steps.find((s) => s.step_order === currentStep.next_step_on_false);
@@ -140,8 +140,7 @@ async function processSingleDelivery(
   // Expand template variables
   const expandedContent = expandVariables(currentStep.message_content, friend);
   // Send via Instagram Messaging API
-  const igsid = (friend as unknown as Record<string, unknown>).igsid as string
-    || (friend as unknown as Record<string, unknown>).line_user_id as string; // backward compat column name
+  const igsid = friend.igsid;
   const parsed = JSON.parse(expandedContent);
   await sendIgMessage(igClient, igsid, currentStep.message_type, parsed);
 
@@ -180,14 +179,14 @@ async function evaluateCondition(
   switch (step.condition_type) {
     case 'tag_exists': {
       const tag = await db
-        .prepare('SELECT 1 FROM friend_tags WHERE friend_id = ? AND tag_id = ?')
+        .prepare('SELECT 1 FROM follower_tags WHERE follower_id = ? AND tag_id = ?')
         .bind(friendId, step.condition_value)
         .first();
       return !!tag;
     }
     case 'tag_not_exists': {
       const tag = await db
-        .prepare('SELECT 1 FROM friend_tags WHERE friend_id = ? AND tag_id = ?')
+        .prepare('SELECT 1 FROM follower_tags WHERE follower_id = ? AND tag_id = ?')
         .bind(friendId, step.condition_value)
         .first();
       return !tag;
@@ -195,7 +194,7 @@ async function evaluateCondition(
     case 'metadata_equals': {
       const { key, value } = JSON.parse(step.condition_value) as { key: string; value: unknown };
       const friendRow = await db
-        .prepare('SELECT metadata FROM friends WHERE id = ?')
+        .prepare('SELECT metadata FROM followers WHERE id = ?')
         .bind(friendId)
         .first<{ metadata: string }>();
       const meta = JSON.parse(friendRow?.metadata || '{}') as Record<string, unknown>;
@@ -204,7 +203,7 @@ async function evaluateCondition(
     case 'metadata_not_equals': {
       const { key, value } = JSON.parse(step.condition_value) as { key: string; value: unknown };
       const friendRow = await db
-        .prepare('SELECT metadata FROM friends WHERE id = ?')
+        .prepare('SELECT metadata FROM followers WHERE id = ?')
         .bind(friendId)
         .first<{ metadata: string }>();
       const meta = JSON.parse(friendRow?.metadata || '{}') as Record<string, unknown>;

@@ -133,7 +133,7 @@ export async function linkFriendToUser(
   userId: string,
 ): Promise<void> {
   await db
-    .prepare(`UPDATE friends SET user_id = ?, updated_at = ? WHERE id = ?`)
+    .prepare(`UPDATE followers SET external_user_id = ?, updated_at = ? WHERE id = ?`)
     .bind(userId, jstNow(), friendId)
     .run();
 }
@@ -141,10 +141,10 @@ export async function linkFriendToUser(
 export async function getUserFriends(
   db: D1Database,
   userId: string,
-): Promise<{ id: string; line_user_id: string; display_name: string | null; is_following: number }[]> {
+): Promise<{ id: number; igsid: string; name: string | null }[]> {
   const result = await db
-    .prepare(`SELECT id, line_user_id, display_name, is_following FROM friends WHERE user_id = ?`)
+    .prepare(`SELECT id, igsid, name FROM followers WHERE external_user_id = ?`)
     .bind(userId)
-    .all<{ id: string; line_user_id: string; display_name: string | null; is_following: number }>();
+    .all<{ id: number; igsid: string; name: string | null }>();
   return result.results;
 }

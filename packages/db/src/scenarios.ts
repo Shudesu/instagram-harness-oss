@@ -35,7 +35,7 @@ export interface ScenarioWithSteps extends Scenario {
 
 export interface FriendScenario {
   id: string;
-  friend_id: string;
+  follower_id: string;
   scenario_id: string;
   current_step_order: number;
   status: FriendScenarioStatus;
@@ -323,14 +323,14 @@ export async function enrollFriendInScenario(
   if (!firstStep) {
     await db
       .prepare(
-        `INSERT INTO friend_scenarios (id, friend_id, scenario_id, current_step_order, status, started_at, next_delivery_at, updated_at)
+        `INSERT INTO follower_scenarios (id, follower_id, scenario_id, current_step_order, status, started_at, next_delivery_at, updated_at)
          VALUES (?, ?, ?, 0, 'completed', ?, NULL, ?)`,
       )
       .bind(id, friendId, scenarioId, now, now)
       .run();
 
     return (await db
-      .prepare(`SELECT * FROM friend_scenarios WHERE id = ?`)
+      .prepare(`SELECT * FROM follower_scenarios WHERE id = ?`)
       .bind(id)
       .first<FriendScenario>())!;
   }
@@ -346,14 +346,14 @@ export async function enrollFriendInScenario(
 
   await db
     .prepare(
-      `INSERT INTO friend_scenarios (id, friend_id, scenario_id, current_step_order, status, started_at, next_delivery_at, updated_at)
+      `INSERT INTO follower_scenarios (id, follower_id, scenario_id, current_step_order, status, started_at, next_delivery_at, updated_at)
        VALUES (?, ?, ?, 0, 'active', ?, ?, ?)`,
     )
     .bind(id, friendId, scenarioId, now, nextDeliveryAt, now)
     .run();
 
   return (await db
-    .prepare(`SELECT * FROM friend_scenarios WHERE id = ?`)
+    .prepare(`SELECT * FROM follower_scenarios WHERE id = ?`)
     .bind(id)
     .first<FriendScenario>())!;
 }
@@ -366,7 +366,7 @@ export async function getFriendScenariosDueForDelivery(
   // to handle mixed timestamp formats (Z and +09:00) during migration
   const result = await db
     .prepare(
-      `SELECT * FROM friend_scenarios
+      `SELECT * FROM follower_scenarios
        WHERE status = 'active'
          AND next_delivery_at IS NOT NULL`,
     )
@@ -386,7 +386,7 @@ export async function advanceFriendScenario(
   const now = jstNow();
   await db
     .prepare(
-      `UPDATE friend_scenarios
+      `UPDATE follower_scenarios
        SET current_step_order = ?,
            next_delivery_at = ?,
            updated_at = ?
@@ -403,7 +403,7 @@ export async function completeFriendScenario(
   const now = jstNow();
   await db
     .prepare(
-      `UPDATE friend_scenarios
+      `UPDATE follower_scenarios
        SET status = 'completed',
            next_delivery_at = NULL,
            updated_at = ?

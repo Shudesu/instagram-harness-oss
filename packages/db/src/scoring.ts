@@ -77,13 +77,13 @@ export async function addScore(
     .bind(id, input.friendId, input.scoringRuleId ?? null, input.scoreChange, input.reason ?? null, now).run();
 
   // スコアキャッシュを更新
-  await db.prepare(`UPDATE friends SET score = score + ?, updated_at = ? WHERE id = ?`)
+  await db.prepare(`UPDATE followers SET score = score + ?, updated_at = ? WHERE id = ?`)
     .bind(input.scoreChange, now, input.friendId).run();
 }
 
 /** 友だちの現在スコアを取得 */
 export async function getFriendScore(db: D1Database, friendId: string): Promise<number> {
-  const row = await db.prepare(`SELECT score FROM friends WHERE id = ?`).bind(friendId).first<{ score: number }>();
+  const row = await db.prepare(`SELECT score FROM followers WHERE id = ?`).bind(friendId).first<{ score: number }>();
   return row?.score ?? 0;
 }
 

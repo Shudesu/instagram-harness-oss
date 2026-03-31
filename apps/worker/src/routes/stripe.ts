@@ -138,8 +138,8 @@ stripe.post('/api/integrations/stripe/webhook', async (c) => {
           .first<{ id: string }>();
         if (tag) {
           await db
-            .prepare(`INSERT OR IGNORE INTO friend_tags (friend_id, tag_id, assigned_at) VALUES (?, ?, ?)`)
-            .bind(friendId, tag.id, jstNow())
+            .prepare(`INSERT OR IGNORE INTO follower_tags (follower_id, tag_id) VALUES (?, ?)`)
+            .bind(friendId, tag.id)
             .run();
         }
       }
@@ -156,8 +156,8 @@ stripe.post('/api/integrations/stripe/webhook', async (c) => {
         .first<{ id: string }>();
       if (cancelledTag) {
         await db
-          .prepare(`INSERT OR IGNORE INTO friend_tags (friend_id, tag_id, assigned_at) VALUES (?, ?, ?)`)
-          .bind(friendId, cancelledTag.id, jstNow())
+          .prepare(`INSERT OR IGNORE INTO follower_tags (follower_id, tag_id) VALUES (?, ?)`)
+          .bind(friendId, cancelledTag.id)
           .run();
       }
     }

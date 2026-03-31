@@ -250,7 +250,7 @@ forms.post('/api/forms/:id/submit', async (c) => {
             const existing = JSON.parse(friend.metadata || '{}') as Record<string, unknown>;
             const merged = { ...existing, ...submissionData };
             await db
-              .prepare(`UPDATE friends SET metadata = ?, updated_at = ? WHERE id = ?`)
+              .prepare(`UPDATE followers SET metadata = ?, updated_at = ? WHERE id = ?`)
               .bind(JSON.stringify(merged), now, friendId)
               .run();
           })(),
@@ -273,8 +273,7 @@ forms.post('/api/forms/:id/submit', async (c) => {
           console.log('Form reply: starting for friendId', friendId);
           const friend = await getFriendById(db, friendId!);
           if (!friend) { console.log('Form reply: friend not found'); return; }
-          const igsid = (friend as unknown as Record<string, unknown>).igsid as string
-            || friend.line_user_id;
+          const igsid = friend.igsid;
           if (!igsid) { console.log('Form reply: no igsid'); return; }
           console.log('Form reply: sending to', igsid);
           const { InstagramClient } = await import('@instagram-harness/ig-sdk');
@@ -297,7 +296,7 @@ forms.post('/api/forms/:id/submit', async (c) => {
             const { expandVariables } = await import('../services/step-delivery.js');
             const friendData = {
               id: friend!.id,
-              display_name: friend!.display_name,
+              display_name: friend!.name,
             };
             const expanded = expandVariables(form.on_submit_message_content, friendData);
             const msgType = form.on_submit_message_type as string;

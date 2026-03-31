@@ -1,20 +1,20 @@
 import { jstNow } from './utils.js';
 
 export interface Friend {
-  id: string;
+  id: number;
   igsid: string;
-  // Backward compat aliases for code that still references line_user_id
-  line_user_id: string;
   username: string | null;
-  display_name: string | null;
-  picture_url: string | null;
-  status_message: string | null;
-  is_following: number;
-  user_id: string | null;
+  name: string | null;
+  profile_pic_url: string | null;
+  external_user_id: string | null;
   score: number;
   metadata: string;
-  created_at: string;
+  first_seen_at: string;
   updated_at: string;
+  // Backward compat aliases
+  display_name: string | null;
+  picture_url: string | null;
+  created_at: string;
 }
 
 export interface GetFriendsOptions {
@@ -33,10 +33,10 @@ export async function getFriends(
     const result = await db
       .prepare(
         `SELECT f.*
-         FROM friends f
-         INNER JOIN friend_tags ft ON ft.friend_id = f.id
+         FROM followers f
+         INNER JOIN follower_tags ft ON ft.follower_id = f.id
          WHERE ft.tag_id = ?
-         ORDER BY f.created_at DESC
+         ORDER BY f.first_seen_at DESC
          LIMIT ? OFFSET ?`,
       )
       .bind(tagId, limit, offset)
@@ -46,8 +46,8 @@ export async function getFriends(
 
   const result = await db
     .prepare(
-      `SELECT * FROM friends
-       ORDER BY created_at DESC
+      `SELECT * FROM followers
+       ORDER BY first_seen_at DESC
        LIMIT ? OFFSET ?`,
     )
     .bind(limit, offset)
@@ -60,7 +60,7 @@ export async function getFriendByIgsid(
   igsid: string,
 ): Promise<Friend | null> {
   return db
-    .prepare(`SELECT * FROM friends WHERE igsid = ?`)
+    .prepare(`SELECT * FROM followers WHERE igsid = ?`)
     .bind(igsid)
     .first<Friend>();
 }
@@ -78,7 +78,7 @@ export async function getFriendById(
   id: string,
 ): Promise<Friend | null> {
   return db
-    .prepare(`SELECT * FROM friends WHERE id = ?`)
+    .prepare(`SELECT * FROM followers WHERE id = ?`)
     .bind(id)
     .first<Friend>();
 }
@@ -104,18 +104,17 @@ export async function upsertFriend(
   if (existing) {
     await db
       .prepare(
-        `UPDATE friends
+        `UPDATE followers
          SET username = ?,
-             display_name = ?,
-             picture_url = ?,
-             is_following = 1,
+             name = ?,
+             profile_pic_url = ?,
              updated_at = ?
          WHERE igsid = ?`,
       )
       .bind(
         input.username ?? existing.username,
-        input.displayName ?? existing.display_name,
-        input.pictureUrl ?? existing.picture_url,
+        input.displayName ?? existing.name,
+        input.pictureUrl ?? existing.profile_pic_url,
         now,
         igsid,
       )
@@ -124,14 +123,12 @@ export async function upsertFriend(
     return (await getFriendByIgsid(db, igsid))!;
   }
 
-  const id = crypto.randomUUID();
   await db
     .prepare(
-      `INSERT INTO friends (id, igsid, username, display_name, picture_url, is_following, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, 1, ?, ?)`,
+      `INSERT INTO followers (igsid, username, name, profile_pic_url, first_seen_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
     )
     .bind(
-      id,
       igsid,
       input.username ?? null,
       input.displayName ?? null,
@@ -141,27 +138,28 @@ export async function upsertFriend(
     )
     .run();
 
-  return (await getFriendById(db, id))!;
+  return (await getFriendByIgsid(db, igsid))!;
 }
 
 export async function updateFriendFollowStatus(
   db: D1Database,
   igsid: string,
-  isFollowing: boolean,
+  _isFollowing: boolean,
 ): Promise<void> {
+  // is_following column removed from schema; update updated_at only
   await db
     .prepare(
-      `UPDATE friends
-       SET is_following = ?, updated_at = ?
+      `UPDATE followers
+       SET updated_at = ?
        WHERE igsid = ?`,
     )
-    .bind(isFollowing ? 1 : 0, jstNow(), igsid)
+    .bind(jstNow(), igsid)
     .run();
 }
 
 export async function getFriendCount(db: D1Database): Promise<number> {
   const row = await db
-    .prepare(`SELECT COUNT(*) as count FROM friends`)
+    .prepare(`SELECT COUNT(*) as count FROM followers`)
     .first<{ count: number }>();
   return row?.count ?? 0;
 }

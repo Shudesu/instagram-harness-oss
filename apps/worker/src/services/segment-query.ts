@@ -19,7 +19,7 @@ export function buildSegmentQuery(condition: SegmentCondition): { sql: string; b
           throw new Error('tag_exists rule requires a string tag ID value')
         }
         clauses.push(
-          `EXISTS (SELECT 1 FROM friend_tags ft WHERE ft.friend_id = f.id AND ft.tag_id = ?)`,
+          `EXISTS (SELECT 1 FROM follower_tags ft WHERE ft.follower_id = f.id AND ft.tag_id = ?)`,
         )
         bindings.push(rule.value)
         break
@@ -30,7 +30,7 @@ export function buildSegmentQuery(condition: SegmentCondition): { sql: string; b
           throw new Error('tag_not_exists rule requires a string tag ID value')
         }
         clauses.push(
-          `NOT EXISTS (SELECT 1 FROM friend_tags ft WHERE ft.friend_id = f.id AND ft.tag_id = ?)`,
+          `NOT EXISTS (SELECT 1 FROM follower_tags ft WHERE ft.follower_id = f.id AND ft.tag_id = ?)`,
         )
         bindings.push(rule.value)
         break
@@ -70,17 +70,15 @@ export function buildSegmentQuery(condition: SegmentCondition): { sql: string; b
         if (typeof rule.value !== 'string') {
           throw new Error('ref_code rule requires a string value')
         }
-        clauses.push(`f.ref_code = ?`)
+        clauses.push(`json_extract(f.metadata, '$.ref_code') = ?`)
         bindings.push(rule.value)
         break
       }
 
       case 'is_following': {
-        if (typeof rule.value !== 'boolean') {
-          throw new Error('is_following rule requires a boolean value')
-        }
-        clauses.push(`f.is_following = ?`)
-        bindings.push(rule.value ? 1 : 0)
+        // is_following column removed; all rows in followers table are considered following
+        clauses.push(`1 = ?`)
+        bindings.push(1)
         break
       }
 
@@ -93,7 +91,7 @@ export function buildSegmentQuery(condition: SegmentCondition): { sql: string; b
 
   const separator = condition.operator === 'AND' ? ' AND ' : ' OR '
   const where = clauses.length > 0 ? clauses.join(separator) : '1=1'
-  const sql = `SELECT f.id, f.line_user_id FROM friends f WHERE ${where}`
+  const sql = `SELECT f.id, f.igsid FROM followers f WHERE ${where}`
 
   return { sql, bindings }
 }

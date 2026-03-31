@@ -7,7 +7,7 @@ export interface Tag {
 }
 
 export interface FriendTag {
-  friend_id: string;
+  follower_id: string;
   tag_id: string;
   assigned_at: string;
 }
@@ -58,7 +58,7 @@ export async function addTagToFriend(
   const now = jstNow();
   await db
     .prepare(
-      `INSERT OR IGNORE INTO friend_tags (friend_id, tag_id, assigned_at)
+      `INSERT OR IGNORE INTO follower_tags (follower_id, tag_id, assigned_at)
        VALUES (?, ?, ?)`,
     )
     .bind(friendId, tagId, now)
@@ -72,7 +72,7 @@ export async function removeTagFromFriend(
 ): Promise<void> {
   await db
     .prepare(
-      `DELETE FROM friend_tags WHERE friend_id = ? AND tag_id = ?`,
+      `DELETE FROM follower_tags WHERE follower_id = ? AND tag_id = ?`,
     )
     .bind(friendId, tagId)
     .run();
@@ -86,8 +86,8 @@ export async function getFriendTags(
     .prepare(
       `SELECT t.*
        FROM tags t
-       INNER JOIN friend_tags ft ON ft.tag_id = t.id
-       WHERE ft.friend_id = ?
+       INNER JOIN follower_tags ft ON ft.tag_id = t.id
+       WHERE ft.follower_id = ?
        ORDER BY t.name ASC`,
     )
     .bind(friendId)
@@ -104,10 +104,10 @@ export async function getFriendsByTag(
   const result = await db
     .prepare(
       `SELECT f.*
-       FROM friends f
-       INNER JOIN friend_tags ft ON ft.friend_id = f.id
+       FROM followers f
+       INNER JOIN follower_tags ft ON ft.follower_id = f.id
        WHERE ft.tag_id = ?
-       ORDER BY f.created_at DESC`,
+       ORDER BY f.first_seen_at DESC`,
     )
     .bind(tagId)
     .all<Friend>();

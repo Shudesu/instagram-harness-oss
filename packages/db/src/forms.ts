@@ -159,8 +159,8 @@ export async function getFormSubmissions(
 ): Promise<FormSubmission[]> {
   const result = await db
     .prepare(
-      `SELECT fs.*, f.display_name as friend_name FROM form_submissions fs
-       LEFT JOIN friends f ON f.id = fs.friend_id
+      `SELECT fs.*, f.name as friend_name FROM form_submissions fs
+       LEFT JOIN followers f ON f.id = fs.friend_id
        WHERE fs.form_id = ? ORDER BY fs.created_at DESC`,
     )
     .bind(formId)

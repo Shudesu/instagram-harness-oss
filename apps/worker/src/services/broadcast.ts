@@ -34,8 +34,8 @@ export async function processBroadcastSend(
       // IG doesn't have a "broadcast to all" API — must send individually
       // Get all followers from DB
       const followers = await db
-        .prepare(`SELECT id, igsid FROM friends WHERE is_following = 1`)
-        .all<{ id: string; igsid: string }>();
+        .prepare(`SELECT id, igsid FROM followers`)
+        .all<{ id: number; igsid: string }>();
       totalCount = followers.results.length;
 
       const now = jstNow();
@@ -74,23 +74,21 @@ export async function processBroadcastSend(
       }
 
       const friends = await getFriendsByTag(db, broadcast.target_tag_id);
-      const followingFriends = friends.filter((f) => f.is_following);
-      totalCount = followingFriends.length;
+      totalCount = friends.length;
 
       const now = jstNow();
-      for (let i = 0; i < followingFriends.length; i += BATCH_SIZE) {
-        const batch = followingFriends.slice(i, i + BATCH_SIZE);
+      for (let i = 0; i < friends.length; i += BATCH_SIZE) {
+        const batch = friends.slice(i, i + BATCH_SIZE);
         const batchIndex = Math.floor(i / BATCH_SIZE);
 
         if (batchIndex > 0) {
-          const delay = calculateStaggerDelay(followingFriends.length, batchIndex);
+          const delay = calculateStaggerDelay(friends.length, batchIndex);
           await sleep(delay);
         }
 
         for (const friend of batch) {
           try {
-            const igsid = (friend as unknown as Record<string, unknown>).igsid as string
-              || (friend as unknown as Record<string, unknown>).line_user_id as string;
+            const igsid = friend.igsid;
             await sendIgMessage(igClient, igsid, broadcast.message_type, messageBody);
             successCount++;
 

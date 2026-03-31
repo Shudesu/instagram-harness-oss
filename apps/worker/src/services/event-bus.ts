@@ -244,14 +244,14 @@ async function executeAction(
     case 'set_metadata': {
       if (!friendId) break;
       const existing = await db
-        .prepare('SELECT metadata FROM friends WHERE id = ?')
+        .prepare('SELECT metadata FROM followers WHERE id = ?')
         .bind(friendId)
         .first<{ metadata: string }>();
       const current = JSON.parse(existing?.metadata || '{}') as Record<string, unknown>;
       const patch = JSON.parse(action.params.data || '{}') as Record<string, unknown>;
       const merged = { ...current, ...patch };
       await db
-        .prepare('UPDATE friends SET metadata = ?, updated_at = ? WHERE id = ?')
+        .prepare('UPDATE followers SET metadata = ?, updated_at = ? WHERE id = ?')
         .bind(JSON.stringify(merged), jstNow(), friendId)
         .run();
       break;

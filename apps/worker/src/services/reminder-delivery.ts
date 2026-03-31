@@ -31,12 +31,11 @@ export async function processReminderDeliveries(
       }
 
       const friend = await getFriendById(db, fr.friend_id);
-      if (!friend || !friend.is_following) {
+      if (!friend) {
         continue;
       }
 
-      const igsid = (friend as unknown as Record<string, unknown>).igsid as string
-        || (friend as unknown as Record<string, unknown>).line_user_id as string;
+      const igsid = friend.igsid;
 
       for (const step of fr.steps) {
         const body = JSON.parse(step.message_content) as Record<string, unknown>;

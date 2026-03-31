@@ -211,7 +211,7 @@ async function handleMessagingEvent(
         ) {
           if (incomingText.includes(scenario.trigger_keyword)) {
             const existing = await db
-              .prepare(`SELECT id FROM friend_scenarios WHERE friend_id = ? AND scenario_id = ?`)
+              .prepare(`SELECT id FROM follower_scenarios WHERE follower_id = ? AND scenario_id = ?`)
               .bind(follower.id, scenario.id)
               .first<{ id: string }>();
             if (!existing) {
@@ -359,7 +359,7 @@ async function handleCommentEvent(
       const keywordMatch = !scenario.trigger_keyword || commentText.toLowerCase().includes(scenario.trigger_keyword.toLowerCase());
       if (keywordMatch) {
         const existing = await db
-          .prepare(`SELECT id FROM friend_scenarios WHERE friend_id = ? AND scenario_id = ?`)
+          .prepare(`SELECT id FROM follower_scenarios WHERE follower_id = ? AND scenario_id = ?`)
           .bind(follower.id, scenario.id)
           .first<{ id: string }>();
         if (!existing) {

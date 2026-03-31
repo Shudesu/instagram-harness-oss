@@ -20,14 +20,13 @@ const friends = new Hono<Env>();
 function serializeFriend(row: DbFriend) {
   return {
     id: row.id,
-    igsid: row.igsid || row.line_user_id,
+    igsid: row.igsid,
     username: row.username,
-    displayName: row.display_name,
-    pictureUrl: row.picture_url,
-    isFollowing: Boolean(row.is_following),
-    score: (row as unknown as Record<string, unknown>).score ?? 0,
+    displayName: row.name,
+    pictureUrl: row.profile_pic_url,
+    score: row.score ?? 0,
     metadata: JSON.parse(row.metadata || '{}'),
-    createdAt: row.created_at,
+    createdAt: row.first_seen_at,
     updatedAt: row.updated_at,
   };
 }
@@ -57,15 +56,15 @@ friends.get('/api/friends', async (c) => {
     const conditions: string[] = [];
     const binds: unknown[] = [];
     if (tagId) {
-      conditions.push('EXISTS (SELECT 1 FROM friend_tags ft WHERE ft.friend_id = f.id AND ft.tag_id = ?)');
+      conditions.push('EXISTS (SELECT 1 FROM follower_tags ft WHERE ft.follower_id = f.id AND ft.tag_id = ?)');
       binds.push(tagId);
     }
     if (lineAccountId) {
-      conditions.push('f.line_account_id = ?');
+      conditions.push('f.external_user_id = ?');
       binds.push(lineAccountId);
     }
     if (search) {
-      conditions.push('f.display_name LIKE ?');
+      conditions.push('f.name LIKE ?');
       binds.push(`%${search}%`);
     }
     // Metadata filters: ?metadata.key=value (e.g. ?metadata.monthly_cost=〜100万円)
@@ -79,12 +78,12 @@ friends.get('/api/friends', async (c) => {
     }
     const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
-    const countStmt = db.prepare(`SELECT COUNT(*) as count FROM friends f ${where}`);
+    const countStmt = db.prepare(`SELECT COUNT(*) as count FROM followers f ${where}`);
     const totalRow = await (binds.length > 0 ? countStmt.bind(...binds) : countStmt).first<{ count: number }>();
     const total = totalRow?.count ?? 0;
 
     const listStmt = db.prepare(
-      `SELECT f.* FROM friends f ${where} ORDER BY f.created_at DESC LIMIT ? OFFSET ?`,
+      `SELECT f.* FROM followers f ${where} ORDER BY f.first_seen_at DESC LIMIT ? OFFSET ?`,
     );
     const listBinds = [...binds, limit, offset];
     const listResult = await listStmt.bind(...listBinds).all<DbFriend>();
@@ -120,7 +119,7 @@ friends.get('/api/friends/count', async (c) => {
     const lineAccountId = c.req.query('lineAccountId');
     let count: number;
     if (lineAccountId) {
-      const row = await c.env.DB.prepare('SELECT COUNT(*) as count FROM friends WHERE is_following = 1 AND line_account_id = ?')
+      const row = await c.env.DB.prepare('SELECT COUNT(*) as count FROM followers WHERE igsid IS NOT NULL AND external_user_id = ?')
         .bind(lineAccountId).first<{ count: number }>();
       count = row?.count ?? 0;
     } else {
@@ -136,16 +135,17 @@ friends.get('/api/friends/count', async (c) => {
 // GET /api/friends/ref-stats - ref code attribution stats
 friends.get('/api/friends/ref-stats', async (c) => {
   try {
-    const lineAccountId = c.req.query('lineAccountId');
-    const where = lineAccountId ? 'WHERE line_account_id = ?' : 'WHERE ref_code IS NOT NULL';
-    const binds = lineAccountId ? [lineAccountId] : [];
+    // ref_code is stored in metadata JSON; external_user_id replaces line_account_id
+    const externalUserId = c.req.query('lineAccountId');
+    const where = externalUserId ? 'WHERE external_user_id = ?' : "WHERE json_extract(metadata, '$.ref_code') IS NOT NULL";
+    const binds = externalUserId ? [externalUserId] : [];
     const stmt = c.env.DB.prepare(
-      `SELECT ref_code, COUNT(*) as count FROM friends ${where} AND ref_code IS NOT NULL GROUP BY ref_code ORDER BY count DESC`,
+      `SELECT json_extract(metadata, '$.ref_code') as ref_code, COUNT(*) as count FROM followers ${where} AND json_extract(metadata, '$.ref_code') IS NOT NULL GROUP BY ref_code ORDER BY count DESC`,
     );
     const result = await (binds.length > 0 ? stmt.bind(...binds) : stmt).all<{ ref_code: string; count: number }>();
     const total = await c.env.DB.prepare(
-      `SELECT COUNT(*) as count FROM friends ${lineAccountId ? 'WHERE line_account_id = ?' : ''} ${lineAccountId ? 'AND' : 'WHERE'} ref_code IS NOT NULL`,
-    ).bind(...(lineAccountId ? [lineAccountId] : [])).first<{ count: number }>();
+      `SELECT COUNT(*) as count FROM followers ${externalUserId ? 'WHERE external_user_id = ? AND' : 'WHERE'} json_extract(metadata, '$.ref_code') IS NOT NULL`,
+    ).bind(...(externalUserId ? [externalUserId] : [])).first<{ count: number }>();
     return c.json({
       success: true,
       data: {
@@ -205,7 +205,7 @@ friends.post('/api/friends/:id/tags', async (c) => {
     for (const scenario of allScenarios) {
       if (scenario.trigger_type === 'tag_added' && scenario.is_active && scenario.trigger_tag_id === body.tagId) {
         const existing = await db
-          .prepare(`SELECT id FROM friend_scenarios WHERE friend_id = ? AND scenario_id = ?`)
+          .prepare(`SELECT id FROM follower_scenarios WHERE follower_id = ? AND scenario_id = ?`)
           .bind(friendId, scenario.id)
           .first();
         if (!existing) {
@@ -259,7 +259,7 @@ friends.put('/api/friends/:id/metadata', async (c) => {
     const now = jstNow();
 
     await db
-      .prepare('UPDATE friends SET metadata = ?, updated_at = ? WHERE id = ?')
+      .prepare('UPDATE followers SET metadata = ?, updated_at = ? WHERE id = ?')
       .bind(JSON.stringify(merged), now, friendId)
       .run();
 
@@ -320,8 +320,7 @@ friends.post('/api/friends/:id/messages', async (c) => {
     const { InstagramClient } = await import('@instagram-harness/ig-sdk');
     const igClient = new InstagramClient({ accessToken: c.env.IG_ACCESS_TOKEN, igUserId: c.env.IG_USER_ID });
     const messageType = body.messageType ?? 'text';
-    const igsid = (friend as unknown as Record<string, unknown>).igsid as string
-      || friend.line_user_id;
+    const igsid = friend.igsid;
 
     // Send via IG Messaging API
     const parsed = JSON.parse(body.content) as Record<string, unknown>;

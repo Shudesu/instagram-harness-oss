@@ -76,7 +76,7 @@ health.post('/api/accounts/:id/migrate', async (c) => {
     // 移行対象: このアカウントに紐づく友だち数をカウント（line_accountsとの関連はuser_id経由）
     // 簡易版: is_following=1 の全友だちを移行対象とする
     const countResult = await db
-      .prepare(`SELECT COUNT(*) as count FROM friends WHERE is_following = 1`)
+      .prepare(`SELECT COUNT(*) as count FROM followers`)
       .first<{ count: number }>();
     const totalCount = countResult?.count ?? 0;
 

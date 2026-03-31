@@ -81,9 +81,9 @@ chats.get('/api/chats', async (c) => {
     const status = c.req.query('status') ?? undefined;
     const operatorId = c.req.query('operatorId') ?? undefined;
 
-    let sql = `SELECT c.*, f.display_name, f.picture_url, f.igsid
+    let sql = `SELECT c.*, f.name as display_name, f.profile_pic_url as picture_url, f.igsid
                FROM chats c
-               LEFT JOIN friends f ON c.friend_id = f.id`;
+               LEFT JOIN followers f ON c.friend_id = f.id`;
     const conditions: string[] = [];
     const bindings: unknown[] = [];
 
@@ -133,7 +133,7 @@ chats.get('/api/chats/:id', async (c) => {
     if (!item) return c.json({ success: false, error: 'Chat not found' }, 404);
 
     const friend = await c.env.DB
-      .prepare(`SELECT display_name, picture_url, igsid FROM friends WHERE id = ?`)
+      .prepare(`SELECT name as display_name, profile_pic_url as picture_url, igsid FROM followers WHERE id = ?`)
       .bind(item.friend_id)
       .first<{ display_name: string | null; picture_url: string | null; igsid: string }>();
 
@@ -209,9 +209,9 @@ chats.post('/api/chats/:id/send', async (c) => {
     if (!body.content) return c.json({ success: false, error: 'content is required' }, 400);
 
     const friend = await c.env.DB
-      .prepare(`SELECT * FROM friends WHERE id = ?`)
+      .prepare(`SELECT * FROM followers WHERE id = ?`)
       .bind(chat.friend_id)
-      .first<{ id: string; igsid: string }>();
+      .first<{ id: number; igsid: string }>();
     if (!friend) return c.json({ success: false, error: 'Friend not found' }, 404);
 
     // Send via Instagram Messaging API
