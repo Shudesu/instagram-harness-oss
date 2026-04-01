@@ -13,7 +13,6 @@ import {
   getScenarioSteps,
   advanceFriendScenario,
   completeFriendScenario,
-  upsertChatOnMessage,
   jstNow,
 } from '@instagram-harness/db';
 import { fireEvent } from '../services/event-bus.js';
@@ -143,9 +142,6 @@ async function handleMessagingEvent(
       )
       .bind(follower.id, JSON.stringify({ text: incomingText }))
       .run();
-
-    // Update chat (mark as unread for manual messages)
-    await upsertChatOnMessage(db, follower.id);
 
     // Check auto-reply (comment rules with dm_keyword trigger)
     const autoReplies = await db
