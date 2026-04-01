@@ -342,19 +342,19 @@ friends.post('/api/friends/:id/messages', async (c) => {
     }
 
     // Log outgoing message
-    const logId = crypto.randomUUID();
     await db
       .prepare(
-        `INSERT INTO messages_log (id, friend_id, direction, message_type, content, broadcast_id, scenario_step_id, created_at)
-         VALUES (?, ?, 'outgoing', ?, ?, NULL, NULL, ?)`,
+        `INSERT INTO messages_log (follower_id, direction, message_type, body, trigger_source)
+         VALUES (?, 'out', ?, ?, 'manual')`,
       )
-      .bind(logId, friend.id, messageType, body.content, jstNow())
+      .bind(friend.id, messageType, body.content)
       .run();
 
     return c.json({ success: true, data: { messageId: logId } });
   } catch (err) {
-    console.error('POST /api/friends/:id/messages error:', err);
-    return c.json({ success: false, error: 'Internal server error' }, 500);
+    const errMsg = err instanceof Error ? err.message : String(err);
+    console.error('POST /api/friends/:id/messages error:', errMsg);
+    return c.json({ success: false, error: errMsg }, 500);
   }
 });
 
