@@ -138,10 +138,10 @@ async function handleMessagingEvent(
     // Log incoming message
     await db
       .prepare(
-        `INSERT INTO messages_log (id, friend_id, direction, message_type, content, broadcast_id, scenario_step_id, created_at)
-         VALUES (?, ?, 'incoming', 'text', ?, NULL, NULL, ?)`,
+        `INSERT INTO messages_log (follower_id, direction, message_type, body, trigger_source)
+         VALUES (?, 'in', 'text', ?, NULL)`,
       )
-      .bind(logId, follower.id, incomingText, now)
+      .bind(follower.id, JSON.stringify({ text: incomingText }))
       .run();
 
     // Update chat (mark as unread for manual messages)
@@ -186,13 +186,12 @@ async function handleMessagingEvent(
         await sendIgResponse(igClient, senderId, rule.response_type, responseBody);
 
         // Log outgoing auto-reply
-        const outLogId = crypto.randomUUID();
         await db
           .prepare(
-            `INSERT INTO messages_log (id, friend_id, direction, message_type, content, broadcast_id, scenario_step_id, created_at)
-             VALUES (?, ?, 'outgoing', ?, ?, NULL, NULL, ?)`,
+            `INSERT INTO messages_log (follower_id, direction, message_type, body, trigger_source)
+             VALUES (?, 'out', ?, ?, 'comment_rule')`,
           )
-          .bind(outLogId, follower.id, rule.response_type, rule.response_body, jstNow())
+          .bind(follower.id, rule.response_type, rule.response_body)
           .run();
 
         matched = true;
@@ -226,13 +225,12 @@ async function handleMessagingEvent(
                   const parsed = JSON.parse(expandedContent);
                   await sendIgResponse(igClient, senderId, firstStep.message_type, parsed);
 
-                  const stepLogId = crypto.randomUUID();
                   await db
                     .prepare(
-                      `INSERT INTO messages_log (id, friend_id, direction, message_type, content, broadcast_id, scenario_step_id, created_at)
-                       VALUES (?, ?, 'outgoing', ?, ?, NULL, ?, ?)`,
+                      `INSERT INTO messages_log (follower_id, direction, message_type, body, trigger_source)
+                       VALUES (?, 'out', ?, ?, 'scenario')`,
                     )
-                    .bind(stepLogId, follower.id, firstStep.message_type, firstStep.message_content, firstStep.id, jstNow())
+                    .bind(follower.id, firstStep.message_type, firstStep.message_content)
                     .run();
 
                   const secondStep = steps[1] ?? null;
@@ -339,13 +337,12 @@ async function handleCommentEvent(
       await sendIgResponse(igClient, senderId, rule.response_type, responseBody);
 
       // Log outgoing message
-      const logId = crypto.randomUUID();
       await db
         .prepare(
-          `INSERT INTO messages_log (id, friend_id, direction, message_type, content, broadcast_id, scenario_step_id, created_at)
-           VALUES (?, ?, 'outgoing', ?, ?, NULL, NULL, ?)`,
+          `INSERT INTO messages_log (follower_id, direction, message_type, body, trigger_source)
+           VALUES (?, 'out', ?, ?, 'comment_rule')`,
         )
-        .bind(logId, follower.id, rule.response_type, rule.response_body, jstNow())
+        .bind(follower.id, rule.response_type, rule.response_body)
         .run();
 
       break; // Only send first matching rule
