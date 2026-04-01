@@ -285,8 +285,8 @@ friends.get('/api/friends/:id/messages', async (c) => {
     const friendId = c.req.param('id');
     const result = await c.env.DB
       .prepare(
-        `SELECT id, direction, message_type as messageType, content, created_at as createdAt
-         FROM messages_log WHERE friend_id = ? ORDER BY created_at ASC LIMIT 200`,
+        `SELECT id, direction, message_type as messageType, body as content, created_at as createdAt
+         FROM messages_log WHERE follower_id = ? ORDER BY created_at ASC LIMIT 200`,
       )
       .bind(friendId)
       .all<{ id: string; direction: string; messageType: string; content: string; createdAt: string }>();

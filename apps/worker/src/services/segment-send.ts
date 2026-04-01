@@ -59,13 +59,12 @@ export async function processSegmentSend(
           await sendIgMessage(igClient, friend.igsid, broadcast.message_type, messageBody);
           successCount++;
 
-          const logId = crypto.randomUUID();
           await db
             .prepare(
-              `INSERT INTO messages_log (id, friend_id, direction, message_type, content, broadcast_id, scenario_step_id, created_at)
-               VALUES (?, ?, 'outgoing', ?, ?, ?, NULL, ?)`,
+              `INSERT INTO messages_log (follower_id, direction, message_type, body, trigger_source)
+               VALUES (?, 'out', ?, ?, 'broadcast')`,
             )
-            .bind(logId, friend.id, broadcast.message_type, broadcast.message_content, broadcastId, now)
+            .bind(friend.id, broadcast.message_type, broadcast.message_content)
             .run();
         } catch (err) {
           console.error(`Segment send failed for friend ${friend.id}:`, err);

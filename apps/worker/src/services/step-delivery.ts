@@ -145,13 +145,12 @@ async function processSingleDelivery(
   await sendIgMessage(igClient, igsid, currentStep.message_type, parsed);
 
   // Log outgoing message
-  const logId = crypto.randomUUID();
   await db
     .prepare(
-      `INSERT INTO messages_log (id, friend_id, direction, message_type, content, broadcast_id, scenario_step_id, created_at)
-       VALUES (?, ?, 'outgoing', ?, ?, NULL, ?, ?)`,
+      `INSERT INTO messages_log (follower_id, direction, message_type, body, trigger_source)
+       VALUES (?, 'out', ?, ?, 'scenario')`,
     )
-    .bind(logId, friend.id, currentStep.message_type, currentStep.message_content, currentStep.id, jstNow())
+    .bind(friend.id, currentStep.message_type, currentStep.message_content)
     .run();
 
   // Determine next step

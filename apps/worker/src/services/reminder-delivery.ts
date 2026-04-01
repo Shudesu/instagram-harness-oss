@@ -42,13 +42,12 @@ export async function processReminderDeliveries(
         await sendIgMessage(igClient, igsid, step.message_type, body);
 
         // Log message
-        const logId = crypto.randomUUID();
         await db
           .prepare(
-            `INSERT INTO messages_log (id, friend_id, direction, message_type, content, created_at)
-             VALUES (?, ?, 'outgoing', ?, ?, ?)`,
+            `INSERT INTO messages_log (follower_id, direction, message_type, body, trigger_source)
+             VALUES (?, 'out', ?, ?, 'scenario')`,
           )
-          .bind(logId, friend.id, step.message_type, step.message_content, jstNow())
+          .bind(friend.id, step.message_type, step.message_content)
           .run();
 
         await markReminderStepDelivered(db, fr.id, step.id);

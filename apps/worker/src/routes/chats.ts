@@ -138,7 +138,7 @@ chats.get('/api/chats/:id', async (c) => {
       .first<{ display_name: string | null; picture_url: string | null; igsid: string }>();
 
     const messages = await c.env.DB
-      .prepare(`SELECT id, friend_id, direction, message_type, content, created_at FROM messages_log WHERE friend_id = ? ORDER BY created_at ASC LIMIT 200`)
+      .prepare(`SELECT id, follower_id, direction, message_type, body, created_at FROM messages_log WHERE follower_id = ? ORDER BY created_at ASC LIMIT 200`)
       .bind(item.friend_id)
       .all();
 
@@ -158,7 +158,7 @@ chats.get('/api/chats/:id', async (c) => {
           id: m.id,
           direction: m.direction,
           messageType: m.message_type,
-          content: m.content,
+          content: m.body,
           createdAt: m.created_at,
         })),
       },
@@ -230,10 +230,9 @@ chats.post('/api/chats/:id/send', async (c) => {
     }
 
     // Log outgoing message
-    const logId = crypto.randomUUID();
     await c.env.DB
-      .prepare(`INSERT INTO messages_log (id, friend_id, direction, message_type, content, created_at) VALUES (?, ?, 'outgoing', ?, ?, ?)`)
-      .bind(logId, friend.id, messageType, body.content, jstNow())
+      .prepare(`INSERT INTO messages_log (follower_id, direction, message_type, body, trigger_source) VALUES (?, 'out', ?, ?, 'manual')`)
+      .bind(friend.id, messageType, body.content)
       .run();
 
     await updateChat(c.env.DB, chatId, { status: 'in_progress', lastMessageAt: jstNow() });
