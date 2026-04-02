@@ -90,6 +90,8 @@ webhook.post('/webhook', async (c) => {
           try {
             if (change.field === 'comments') {
               await handleCommentEvent(db, igClient, change.value, c.env.WORKER_URL);
+            } else if (change.field === 'mentions') {
+              await handleMentionEvent(db, igClient, change.value);
             }
           } catch (err) {
             console.error('Error handling change event:', err);
@@ -142,6 +144,41 @@ async function handleMessagingEvent(
       )
       .bind(follower.id, JSON.stringify({ text: incomingText }))
       .run();
+
+    // Check LINE Harness UUID linkage token
+    if (incomingText.startsWith('CONNECT:')) {
+      const token = incomingText.slice(8).trim();
+      // Look up token in tracked_links (ref_code = token, destination contains uid)
+      const link = await db
+        .prepare("SELECT destination_url FROM tracked_links WHERE ref_code = ?")
+        .bind(token)
+        .first<{ destination_url: string }>();
+
+      if (link) {
+        // Extract uid from destination URL
+        const url = new URL(link.destination_url);
+        const uid = url.searchParams.get('uid');
+        if (uid) {
+          await db
+            .prepare("UPDATE followers SET external_user_id = ?, updated_at = datetime('now') WHERE id = ?")
+            .bind(uid, follower.id)
+            .run();
+
+          await igClient.sendText(senderId, '✅ LINE連携が完了しました！LINEとInstagramのアカウントが紐づけられました。');
+
+          await db
+            .prepare(
+              `INSERT INTO messages_log (follower_id, direction, message_type, body, trigger_source)
+               VALUES (?, 'out', 'text', ?, 'manual')`,
+            )
+            .bind(follower.id, JSON.stringify({ text: 'LINE連携完了通知' }))
+            .run();
+        }
+      } else {
+        await igClient.sendText(senderId, '❌ 無効な連携コードです。LINEから再度リンクを取得してください。');
+      }
+      return; // Don't process further
+    }
 
     // Check dm_keyword scenario triggers
     {
@@ -356,6 +393,45 @@ async function sendIgResponse(
       if (typeof body.text === 'string') {
         await igClient.sendText(recipientId, body.text);
       }
+  }
+}
+
+// ── Story/Post Mention Handler ──
+async function handleMentionEvent(
+  db: D1Database,
+  igClient: InstagramClient,
+  value: { media_id?: string; comment_id?: string; mentioned_user_id?: string },
+): Promise<void> {
+  // When someone mentions us in their story, send them a DM
+  const mentionerId = (value as any).from?.id ?? (value as any).mentioned_user_id;
+  if (!mentionerId) return;
+
+  const mentionerUsername = (value as any).from?.username ?? 'friend';
+
+  // Upsert follower
+  const follower = await upsertFriend(db, {
+    igsid: mentionerId,
+    username: mentionerUsername,
+    displayName: null,
+    pictureUrl: null,
+  });
+
+  // Send thank you DM
+  try {
+    await igClient.sendText(
+      mentionerId,
+      `@${mentionerUsername} ストーリーズでメンションありがとう！🙏✨ とても嬉しいです！`,
+    );
+
+    await db
+      .prepare(
+        `INSERT INTO messages_log (follower_id, direction, message_type, body, trigger_source)
+         VALUES (?, 'out', 'text', ?, 'manual')`,
+      )
+      .bind(follower.id, JSON.stringify({ text: `ストーリーズメンション自動返信 to @${mentionerUsername}` }))
+      .run();
+  } catch (err) {
+    console.error('Mention DM failed:', err);
   }
 }
 

@@ -92,6 +92,34 @@ app.route('/', adPlatforms);
 app.route('/', staff);
 app.route('/', images);
 
+// LINE Harness UUID linkage endpoint
+app.get('/connect', (c) => {
+  const uid = c.req.query('uid');
+  const token = c.req.query('token');
+  if (!uid || !token) {
+    return c.html(`<!DOCTYPE html><html><head><title>Error</title></head><body><h1>Invalid link</h1></body></html>`, 400);
+  }
+  // Show page that instructs user to send the token via IG DM
+  return c.html(`<!DOCTYPE html><html><head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Instagram連携</title>
+<style>
+body { font-family: -apple-system, sans-serif; max-width: 480px; margin: 40px auto; padding: 0 20px; text-align: center; }
+h1 { font-size: 24px; }
+.token-box { background: #f0f0f0; padding: 16px; border-radius: 12px; font-size: 20px; font-weight: bold; letter-spacing: 2px; margin: 20px 0; }
+.btn { display: inline-block; background: linear-gradient(135deg, #833AB4, #FD1D1D, #F77737); color: white; padding: 14px 28px; border-radius: 25px; text-decoration: none; font-size: 16px; font-weight: bold; margin-top: 16px; }
+p { color: #666; line-height: 1.6; }
+</style></head><body>
+<h1>📱 Instagram連携</h1>
+<p>以下のコードをInstagramのDMで送信してください</p>
+<div class="token-box">CONNECT:${token}</div>
+<a class="btn" href="https://ig.me/m/nodashuichi.ai">DMを開く</a>
+<p style="margin-top:24px; font-size:13px; color:#999;">このコードを送信すると、LINEアカウントとInstagramアカウントが連携されます。</p>
+</body></html>`);
+});
+
+// Handle CONNECT token in DM webhook (processed in webhook.ts handleMessagingEvent)
+
 // Data deletion callback (required for Meta app)
 app.post('/data-deletion', async (c) => {
   const body = await c.req.json<{ signed_request?: string }>();
