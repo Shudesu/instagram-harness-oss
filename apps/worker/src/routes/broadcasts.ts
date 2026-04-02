@@ -6,7 +6,7 @@ import {
   updateBroadcast,
   deleteBroadcast,
 } from '@instagram-harness/db';
-import type { Broadcast as DbBroadcast, BroadcastMessageType, BroadcastTargetType } from '@instagram-harness/db';
+import type { Broadcast as DbBroadcast, BroadcastMessageType } from '@instagram-harness/db';
 import { InstagramClient } from '@instagram-harness/ig-sdk';
 import { processBroadcastSend } from '../services/broadcast.js';
 import type { Env } from '../index.js';
@@ -16,34 +16,23 @@ const broadcasts = new Hono<Env>();
 function serializeBroadcast(row: DbBroadcast) {
   return {
     id: row.id,
-    title: row.title,
+    name: row.name,
     messageType: row.message_type,
-    messageContent: row.message_content,
-    targetType: row.target_type,
-    targetTagId: row.target_tag_id,
+    body: row.body,
+    tagFilter: row.tag_filter,
     status: row.status,
     scheduledAt: row.scheduled_at,
     sentAt: row.sent_at,
-    totalCount: row.total_count,
-    successCount: row.success_count,
+    totalSent: row.total_sent,
     createdAt: row.created_at,
+    updatedAt: row.updated_at,
   };
 }
 
 // GET /api/broadcasts - list all
 broadcasts.get('/api/broadcasts', async (c) => {
   try {
-    const lineAccountId = c.req.query('lineAccountId');
-    let items: DbBroadcast[];
-    if (lineAccountId) {
-      const result = await c.env.DB
-        .prepare(`SELECT * FROM broadcasts WHERE line_account_id = ? ORDER BY created_at DESC`)
-        .bind(lineAccountId)
-        .all<DbBroadcast>();
-      items = result.results;
-    } else {
-      items = await getBroadcasts(c.env.DB);
-    }
+    const items = await getBroadcasts(c.env.DB);
     return c.json({ success: true, data: items.map(serializeBroadcast) });
   } catch (err) {
     console.error('GET /api/broadcasts error:', err);
@@ -71,50 +60,28 @@ broadcasts.get('/api/broadcasts/:id', async (c) => {
 // POST /api/broadcasts - create
 broadcasts.post('/api/broadcasts', async (c) => {
   try {
-    const body = await c.req.json<{
-      title: string;
+    const reqBody = await c.req.json<{
+      name: string;
       messageType: BroadcastMessageType;
-      messageContent: string;
-      targetType: BroadcastTargetType;
-      targetTagId?: string | null;
+      body: string;
+      tagFilter?: string | null;
       scheduledAt?: string | null;
-      lineAccountId?: string | null;
-      altText?: string | null;
     }>();
 
-    if (!body.title || !body.messageType || !body.messageContent || !body.targetType) {
+    if (!reqBody.name || !reqBody.messageType || !reqBody.body) {
       return c.json(
-        { success: false, error: 'title, messageType, messageContent, and targetType are required' },
-        400,
-      );
-    }
-
-    if (body.targetType === 'tag' && !body.targetTagId) {
-      return c.json(
-        { success: false, error: 'targetTagId is required when targetType is "tag"' },
+        { success: false, error: 'name, messageType, and body are required' },
         400,
       );
     }
 
     const broadcast = await createBroadcast(c.env.DB, {
-      title: body.title,
-      messageType: body.messageType,
-      messageContent: body.messageContent,
-      targetType: body.targetType,
-      targetTagId: body.targetTagId ?? null,
-      scheduledAt: body.scheduledAt ?? null,
+      name: reqBody.name,
+      messageType: reqBody.messageType,
+      body: reqBody.body,
+      tagFilter: reqBody.tagFilter ?? null,
+      scheduledAt: reqBody.scheduledAt ?? null,
     });
-
-    // Save line_account_id and alt_text if provided
-    const updates: string[] = [];
-    const binds: unknown[] = [];
-    if (body.lineAccountId) { updates.push('line_account_id = ?'); binds.push(body.lineAccountId); }
-    if (body.altText) { updates.push('alt_text = ?'); binds.push(body.altText); }
-    if (updates.length > 0) {
-      binds.push(broadcast.id);
-      await c.env.DB.prepare(`UPDATE broadcasts SET ${updates.join(', ')} WHERE id = ?`)
-        .bind(...binds).run();
-    }
 
     return c.json({ success: true, data: serializeBroadcast(broadcast) }, 201);
   } catch (err) {
@@ -137,28 +104,26 @@ broadcasts.put('/api/broadcasts/:id', async (c) => {
       return c.json({ success: false, error: 'Only draft or scheduled broadcasts can be updated' }, 400);
     }
 
-    const body = await c.req.json<{
-      title?: string;
+    const reqBody = await c.req.json<{
+      name?: string;
       messageType?: BroadcastMessageType;
-      messageContent?: string;
-      targetType?: BroadcastTargetType;
-      targetTagId?: string | null;
+      body?: string;
+      tagFilter?: string | null;
       scheduledAt?: string | null;
     }>();
 
     // Keep status in sync with scheduledAt changes
     let statusUpdate: 'draft' | 'scheduled' | undefined;
-    if (body.scheduledAt !== undefined) {
-      statusUpdate = body.scheduledAt ? 'scheduled' : 'draft';
+    if (reqBody.scheduledAt !== undefined) {
+      statusUpdate = reqBody.scheduledAt ? 'scheduled' : 'draft';
     }
 
     const updated = await updateBroadcast(c.env.DB, id, {
-      title: body.title,
-      message_type: body.messageType,
-      message_content: body.messageContent,
-      target_type: body.targetType,
-      target_tag_id: body.targetTagId,
-      scheduled_at: body.scheduledAt,
+      name: reqBody.name,
+      message_type: reqBody.messageType,
+      body: reqBody.body,
+      tag_filter: reqBody.tagFilter,
+      scheduled_at: reqBody.scheduledAt,
       ...(statusUpdate !== undefined ? { status: statusUpdate } : {}),
     });
 
@@ -196,9 +161,9 @@ broadcasts.post('/api/broadcasts/:id/send', async (c) => {
     }
 
     const igClient = new InstagramClient({ accessToken: c.env.IG_ACCESS_TOKEN, igUserId: c.env.IG_USER_ID });
-    await processBroadcastSend(c.env.DB, igClient, id, c.env.WORKER_URL);
+    await processBroadcastSend(c.env.DB, igClient, existing.id, c.env.WORKER_URL);
 
-    const result = await getBroadcastById(c.env.DB, id);
+    const result = await getBroadcastById(c.env.DB, existing.id);
     return c.json({ success: true, data: result ? serializeBroadcast(result) : null });
   } catch (err) {
     console.error('POST /api/broadcasts/:id/send error:', err);

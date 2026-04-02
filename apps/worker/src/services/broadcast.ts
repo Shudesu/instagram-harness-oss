@@ -4,7 +4,6 @@ import {
   updateBroadcastStatus,
   getFriendsByTag,
   jstNow,
-  createBroadcastInsight,
 } from '@instagram-harness/db';
 import type { Broadcast } from '@instagram-harness/db';
 import type { InstagramClient } from '@instagram-harness/ig-sdk';
@@ -15,7 +14,7 @@ const BATCH_SIZE = 50; // IG API is more conservative than LINE
 export async function processBroadcastSend(
   db: D1Database,
   igClient: InstagramClient,
-  broadcastId: string,
+  broadcastId: number | string,
   _workerUrl?: string,
 ): Promise<Broadcast> {
   await updateBroadcastStatus(db, broadcastId, 'sending');
@@ -25,57 +24,52 @@ export async function processBroadcastSend(
     throw new Error(`Broadcast ${broadcastId} not found`);
   }
 
-  const messageBody = JSON.parse(broadcast.message_content) as Record<string, unknown>;
-  let totalCount = 0;
-  let successCount = 0;
+  const messageBody = JSON.parse(broadcast.body) as Record<string, unknown>;
+  let totalSent = 0;
 
   try {
-    if (broadcast.target_type === 'all') {
-      // IG doesn't have a "broadcast to all" API — must send individually
-      // Get all followers from DB
+    if (!broadcast.tag_filter) {
+      // No tag filter — send to all followers
       const followers = await db
         .prepare(`SELECT id, igsid FROM followers`)
         .all<{ id: number; igsid: string }>();
-      totalCount = followers.results.length;
+      const allFollowers = followers.results;
 
-      const now = jstNow();
-      for (let i = 0; i < followers.results.length; i += BATCH_SIZE) {
-        const batch = followers.results.slice(i, i + BATCH_SIZE);
+      for (let i = 0; i < allFollowers.length; i += BATCH_SIZE) {
+        const batch = allFollowers.slice(i, i + BATCH_SIZE);
         const batchIndex = Math.floor(i / BATCH_SIZE);
 
-        // Stagger delays between batches
         if (batchIndex > 0) {
-          const delay = calculateStaggerDelay(followers.results.length, batchIndex);
+          const delay = calculateStaggerDelay(allFollowers.length, batchIndex);
           await sleep(delay);
         }
 
         for (const follower of batch) {
           try {
             await sendIgMessage(igClient, follower.igsid, broadcast.message_type, messageBody);
-            successCount++;
+            totalSent++;
 
-            // Log outgoing message
             await db
               .prepare(
                 `INSERT INTO messages_log (follower_id, direction, message_type, body, trigger_source)
                  VALUES (?, 'out', ?, ?, 'broadcast')`,
               )
-              .bind(follower.id, broadcast.message_type, broadcast.message_content)
+              .bind(follower.id, broadcast.message_type, broadcast.body)
               .run();
           } catch (err) {
             console.error(`Broadcast send failed for follower ${follower.id}:`, err);
           }
         }
       }
-    } else if (broadcast.target_type === 'tag') {
-      if (!broadcast.target_tag_id) {
-        throw new Error('target_tag_id is required for tag-targeted broadcasts');
+    } else {
+      // tag_filter present — parse and send to matching followers
+      const tagFilter = JSON.parse(broadcast.tag_filter) as { tagId?: string };
+      if (!tagFilter.tagId) {
+        throw new Error('tag_filter must contain tagId');
       }
 
-      const friends = await getFriendsByTag(db, broadcast.target_tag_id);
-      totalCount = friends.length;
+      const friends = await getFriendsByTag(db, tagFilter.tagId);
 
-      const now = jstNow();
       for (let i = 0; i < friends.length; i += BATCH_SIZE) {
         const batch = friends.slice(i, i + BATCH_SIZE);
         const batchIndex = Math.floor(i / BATCH_SIZE);
@@ -87,16 +81,15 @@ export async function processBroadcastSend(
 
         for (const friend of batch) {
           try {
-            const igsid = friend.igsid;
-            await sendIgMessage(igClient, igsid, broadcast.message_type, messageBody);
-            successCount++;
+            await sendIgMessage(igClient, friend.igsid, broadcast.message_type, messageBody);
+            totalSent++;
 
             await db
               .prepare(
                 `INSERT INTO messages_log (follower_id, direction, message_type, body, trigger_source)
                  VALUES (?, 'out', ?, ?, 'broadcast')`,
               )
-              .bind(friend.id, broadcast.message_type, broadcast.message_content)
+              .bind(friend.id, broadcast.message_type, broadcast.body)
               .run();
           } catch (err) {
             console.error(`Broadcast send failed for friend ${friend.id}:`, err);
@@ -105,8 +98,7 @@ export async function processBroadcastSend(
       }
     }
 
-    await createBroadcastInsight(db, broadcast.id);
-    await updateBroadcastStatus(db, broadcastId, 'sent', { totalCount, successCount });
+    await updateBroadcastStatus(db, broadcastId, 'sent', { totalSent });
   } catch (err) {
     await updateBroadcastStatus(db, broadcastId, 'draft');
     throw err;
