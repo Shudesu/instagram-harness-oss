@@ -3,7 +3,6 @@ import { cors } from 'hono/cors';
 import { InstagramClient } from '@instagram-harness/ig-sdk';
 import { processStepDeliveries } from './services/step-delivery.js';
 import { processScheduledBroadcasts } from './services/broadcast.js';
-import { processReminderDeliveries } from './services/reminder-delivery.js';
 import { authMiddleware } from './middleware/auth.js';
 import { rateLimitMiddleware } from './middleware/rate-limit.js';
 import { webhook } from './routes/webhook.js';
@@ -11,26 +10,10 @@ import { friends } from './routes/friends.js';
 import { tags } from './routes/tags.js';
 import { scenarios } from './routes/scenarios.js';
 import { broadcasts } from './routes/broadcasts.js';
-import { users } from './routes/users.js';
-import { igAccounts } from './routes/ig-accounts.js';
 import { commentRules } from './routes/comment-rules.js';
-import { conversions } from './routes/conversions.js';
-import { affiliates } from './routes/affiliates.js';
-import { openapi } from './routes/openapi.js';
-// Round 3 routes
-import { webhooks } from './routes/webhooks.js';
-import { calendar } from './routes/calendar.js';
-import { reminders } from './routes/reminders.js';
-import { scoring } from './routes/scoring.js';
-import { templates } from './routes/templates.js';
-import { chats } from './routes/chats.js';
-import { notifications } from './routes/notifications.js';
-import { stripe } from './routes/stripe.js';
 import { health } from './routes/health.js';
-import { automations } from './routes/automations.js';
 import { trackedLinks } from './routes/tracked-links.js';
 import { forms } from './routes/forms.js';
-import { adPlatforms } from './routes/ad-platforms.js';
 import { staff } from './routes/staff.js';
 import { images } from './routes/images.js';
 
@@ -62,33 +45,16 @@ app.use('*', rateLimitMiddleware);
 // Auth middleware — skips /webhook automatically
 app.use('*', authMiddleware);
 
-// Mount route groups — MVP & Round 2
+// Mount route groups
 app.route('/', webhook);
 app.route('/', friends);
 app.route('/', tags);
 app.route('/', scenarios);
 app.route('/', broadcasts);
-app.route('/', users);
-app.route('/', igAccounts);
 app.route('/', commentRules);
-app.route('/', conversions);
-app.route('/', affiliates);
-app.route('/', openapi);
-
-// Mount route groups — Round 3
-app.route('/', webhooks);
-app.route('/', calendar);
-app.route('/', reminders);
-app.route('/', scoring);
-app.route('/', templates);
-app.route('/', chats);
-app.route('/', notifications);
-app.route('/', stripe);
 app.route('/', health);
-app.route('/', automations);
 app.route('/', trackedLinks);
 app.route('/', forms);
-app.route('/', adPlatforms);
 app.route('/', staff);
 app.route('/', images);
 
@@ -174,7 +140,6 @@ async function scheduled(
   const jobs = [
     processStepDeliveries(env.DB, igClient, env.WORKER_URL),
     processScheduledBroadcasts(env.DB, igClient, env.WORKER_URL),
-    processReminderDeliveries(env.DB, igClient),
   ];
 
   await Promise.allSettled(jobs);

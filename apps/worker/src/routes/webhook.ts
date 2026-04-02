@@ -15,7 +15,6 @@ import {
   completeFriendScenario,
   jstNow,
 } from '@instagram-harness/db';
-import { fireEvent } from '../services/event-bus.js';
 import { buildIgMessage, expandVariables } from '../services/step-delivery.js';
 import type { Env } from '../index.js';
 
@@ -233,19 +232,11 @@ async function handleMessagingEvent(
       }
     }
 
-    // Fire event bus: dm_received
-    await fireEvent(db, 'dm_received', {
-      friendId: follower.id,
-      eventData: { text: incomingText },
-    });
   }
 
-  // Handle postback events
+  // Handle postback events (no-op for now — outgoing webhook integration to be added later)
   if (event.postback) {
-    await fireEvent(db, 'postback', {
-      friendId: follower.id,
-      eventData: { payload: event.postback.payload, title: event.postback.title },
-    });
+    console.log('Postback received:', event.postback.payload, 'from follower:', follower.id);
   }
 }
 
@@ -360,11 +351,6 @@ async function handleCommentEvent(
     }
   }
 
-  // Fire event bus: comment_received
-  await fireEvent(db, 'comment_received', {
-    friendId: follower.id,
-    eventData: { text: commentText, mediaId, commentId: value.id },
-  });
 }
 
 /**

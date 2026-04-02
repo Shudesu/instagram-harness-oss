@@ -11,7 +11,6 @@ import {
   jstNow,
 } from '@instagram-harness/db';
 import type { Friend as DbFriend, Tag as DbTag } from '@instagram-harness/db';
-import { fireEvent } from '../services/event-bus.js';
 import type { Env } from '../index.js';
 
 const friends = new Hono<Env>();
@@ -214,9 +213,6 @@ friends.post('/api/friends/:id/tags', async (c) => {
       }
     }
 
-    // イベントバス発火: tag_change
-    await fireEvent(db, 'tag_change', { friendId, eventData: { tagId: body.tagId, action: 'add' } });
-
     return c.json({ success: true, data: null }, 201);
   } catch (err) {
     console.error('POST /api/friends/:id/tags error:', err);
@@ -231,9 +227,6 @@ friends.delete('/api/friends/:id/tags/:tagId', async (c) => {
     const tagId = c.req.param('tagId');
 
     await removeTagFromFriend(c.env.DB, friendId, tagId);
-
-    // イベントバス発火: tag_change
-    await fireEvent(c.env.DB, 'tag_change', { friendId, eventData: { tagId, action: 'remove' } });
 
     return c.json({ success: true, data: null });
   } catch (err) {

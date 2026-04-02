@@ -9,8 +9,6 @@ import {
 import type { Broadcast as DbBroadcast, BroadcastMessageType, BroadcastTargetType } from '@instagram-harness/db';
 import { InstagramClient } from '@instagram-harness/ig-sdk';
 import { processBroadcastSend } from '../services/broadcast.js';
-import { processSegmentSend } from '../services/segment-send.js';
-import type { SegmentCondition } from '../services/segment-query.js';
 import type { Env } from '../index.js';
 
 const broadcasts = new Hono<Env>();
@@ -204,40 +202,6 @@ broadcasts.post('/api/broadcasts/:id/send', async (c) => {
     return c.json({ success: true, data: result ? serializeBroadcast(result) : null });
   } catch (err) {
     console.error('POST /api/broadcasts/:id/send error:', err);
-    return c.json({ success: false, error: 'Internal server error' }, 500);
-  }
-});
-
-// POST /api/broadcasts/:id/send-segment - send to a filtered segment
-broadcasts.post('/api/broadcasts/:id/send-segment', async (c) => {
-  try {
-    const id = c.req.param('id');
-    const existing = await getBroadcastById(c.env.DB, id);
-
-    if (!existing) {
-      return c.json({ success: false, error: 'Broadcast not found' }, 404);
-    }
-
-    if (existing.status === 'sending' || existing.status === 'sent') {
-      return c.json({ success: false, error: 'Broadcast is already sent or sending' }, 400);
-    }
-
-    const body = await c.req.json<{ conditions: SegmentCondition }>();
-
-    if (!body.conditions || !body.conditions.operator || !Array.isArray(body.conditions.rules)) {
-      return c.json(
-        { success: false, error: 'conditions with operator and rules array is required' },
-        400,
-      );
-    }
-
-    const igClient = new InstagramClient({ accessToken: c.env.IG_ACCESS_TOKEN, igUserId: c.env.IG_USER_ID });
-    await processSegmentSend(c.env.DB, igClient, id, body.conditions);
-
-    const result = await getBroadcastById(c.env.DB, id);
-    return c.json({ success: true, data: result ? serializeBroadcast(result) : null });
-  } catch (err) {
-    console.error('POST /api/broadcasts/:id/send-segment error:', err);
     return c.json({ success: false, error: 'Internal server error' }, 500);
   }
 });
