@@ -350,7 +350,7 @@ friends.post('/api/friends/:id/messages', async (c) => {
       .bind(friend.id, messageType, body.content)
       .run();
 
-    return c.json({ success: true, data: { messageId: logId } });
+    return c.json({ success: true, data: { sent: true } });
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : String(err);
     console.error('POST /api/friends/:id/messages error:', errMsg);
