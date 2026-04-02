@@ -22,7 +22,7 @@ export interface ScenarioStep {
   step_order: number;
   delay_minutes: number;
   message_type: MessageType;
-  message_content: string;
+  body: string;
   condition_type: string | null;
   condition_value: string | null;
   next_step_on_false: number | null;
@@ -204,7 +204,7 @@ export async function createScenarioStep(
 
   await db
     .prepare(
-      `INSERT INTO scenario_steps (id, scenario_id, step_order, delay_minutes, message_type, message_content, condition_type, condition_value, next_step_on_false, created_at)
+      `INSERT INTO scenario_steps (id, scenario_id, step_order, delay_minutes, message_type, body, condition_type, condition_value, next_step_on_false, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .bind(
@@ -228,7 +228,7 @@ export async function createScenarioStep(
 }
 
 export type UpdateScenarioStepInput = Partial<
-  Pick<ScenarioStep, 'step_order' | 'delay_minutes' | 'message_type' | 'message_content' | 'condition_type' | 'condition_value' | 'next_step_on_false'>
+  Pick<ScenarioStep, 'step_order' | 'delay_minutes' | 'message_type' | 'body' | 'condition_type' | 'condition_value' | 'next_step_on_false'>
 >;
 
 export async function updateScenarioStep(
@@ -251,9 +251,9 @@ export async function updateScenarioStep(
     fields.push('message_type = ?');
     values.push(updates.message_type);
   }
-  if (updates.message_content !== undefined) {
-    fields.push('message_content = ?');
-    values.push(updates.message_content);
+  if (updates.body !== undefined) {
+    fields.push('body = ?');
+    values.push(updates.body);
   }
   if (updates.condition_type !== undefined) {
     fields.push('condition_type = ?');

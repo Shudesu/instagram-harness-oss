@@ -165,7 +165,7 @@ async function handleMessagingEvent(
               const firstStep = steps[0];
               if (firstStep && firstStep.delay_minutes === 0 && friendScenario.status === 'active') {
                 try {
-                  const expandedContent = expandVariables(firstStep.message_content, follower);
+                  const expandedContent = expandVariables(firstStep.body, follower);
                   const parsed = JSON.parse(expandedContent);
                   await sendIgResponse(igClient, senderId, firstStep.message_type, parsed);
 
@@ -174,7 +174,7 @@ async function handleMessagingEvent(
                       `INSERT INTO messages_log (follower_id, direction, message_type, body, trigger_source)
                        VALUES (?, 'out', ?, ?, 'scenario')`,
                     )
-                    .bind(follower.id, firstStep.message_type, firstStep.message_content)
+                    .bind(follower.id, firstStep.message_type, firstStep.body)
                     .run();
 
                   const secondStep = steps[1] ?? null;
@@ -190,7 +190,6 @@ async function handleMessagingEvent(
                 }
               }
             }
-            matched = true;
             break;
           }
         }
@@ -200,7 +199,7 @@ async function handleMessagingEvent(
     // Fire event bus: dm_received
     await fireEvent(db, 'dm_received', {
       friendId: follower.id,
-      eventData: { text: incomingText, matched },
+      eventData: { text: incomingText },
     });
   }
 

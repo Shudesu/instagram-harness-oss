@@ -138,7 +138,7 @@ async function processSingleDelivery(
   }
 
   // Expand template variables
-  const expandedContent = expandVariables(currentStep.message_content, friend);
+  const expandedContent = expandVariables(currentStep.body, friend);
   // Send via Instagram Messaging API
   const igsid = friend.igsid;
   const parsed = JSON.parse(expandedContent);
@@ -150,7 +150,7 @@ async function processSingleDelivery(
       `INSERT INTO messages_log (follower_id, direction, message_type, body, trigger_source)
        VALUES (?, 'out', ?, ?, 'scenario')`,
     )
-    .bind(friend.id, currentStep.message_type, currentStep.message_content)
+    .bind(friend.id, currentStep.message_type, currentStep.body)
     .run();
 
   // Determine next step
