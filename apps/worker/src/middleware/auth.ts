@@ -11,6 +11,7 @@ export async function authMiddleware(c: Context<Env>, next: Next): Promise<Respo
     path === '/privacy' ||
     path === '/privacy-policy' ||
     path === '/data-deletion' ||
+    path === '/connect' ||
     path === '/docs' ||
     path === '/openapi.json' ||
     path === '/api/affiliates/click' ||
