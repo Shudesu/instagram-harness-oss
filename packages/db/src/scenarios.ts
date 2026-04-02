@@ -37,10 +37,10 @@ export interface FriendScenario {
   id: string;
   follower_id: string;
   scenario_id: string;
-  current_step_order: number;
+  current_step: number;
   status: FriendScenarioStatus;
-  started_at: string;
-  next_delivery_at: string | null;
+  enrolled_at: string;
+  next_step_at: string | null;
   updated_at: string;
 }
 
@@ -311,7 +311,7 @@ export async function enrollFriendInScenario(
   const id = crypto.randomUUID();
   const now = jstNow();
 
-  // Get the first step to calculate next_delivery_at
+  // Get the first step to calculate next_step_at
   const firstStep = await db
     .prepare(
       `SELECT * FROM scenario_steps WHERE scenario_id = ? ORDER BY step_order ASC LIMIT 1`,
@@ -323,15 +323,15 @@ export async function enrollFriendInScenario(
   if (!firstStep) {
     await db
       .prepare(
-        `INSERT INTO follower_scenarios (id, follower_id, scenario_id, current_step_order, status, started_at, next_delivery_at, updated_at)
-         VALUES (?, ?, ?, 0, 'completed', ?, NULL, ?)`,
+        `INSERT INTO follower_scenarios (follower_id, scenario_id, current_step, status, enrolled_at, next_step_at, updated_at)
+         VALUES (?, ?, 0, 'completed', ?, NULL, ?)`,
       )
-      .bind(id, friendId, scenarioId, now, now)
+      .bind(friendId, scenarioId, now, now)
       .run();
 
     return (await db
-      .prepare(`SELECT * FROM follower_scenarios WHERE id = ?`)
-      .bind(id)
+      .prepare(`SELECT * FROM follower_scenarios WHERE follower_id = ? AND scenario_id = ? ORDER BY id DESC LIMIT 1`)
+      .bind(friendId, scenarioId)
       .first<FriendScenario>())!;
   }
 
@@ -346,15 +346,15 @@ export async function enrollFriendInScenario(
 
   await db
     .prepare(
-      `INSERT INTO follower_scenarios (id, follower_id, scenario_id, current_step_order, status, started_at, next_delivery_at, updated_at)
-       VALUES (?, ?, ?, 0, 'active', ?, ?, ?)`,
+      `INSERT INTO follower_scenarios (follower_id, scenario_id, current_step, status, enrolled_at, next_step_at, updated_at)
+       VALUES (?, ?, 0, 'active', ?, ?, ?)`,
     )
-    .bind(id, friendId, scenarioId, now, nextDeliveryAt, now)
+    .bind(friendId, scenarioId, now, nextDeliveryAt, now)
     .run();
 
   return (await db
-    .prepare(`SELECT * FROM follower_scenarios WHERE id = ?`)
-    .bind(id)
+    .prepare(`SELECT * FROM follower_scenarios WHERE follower_id = ? AND scenario_id = ? ORDER BY id DESC LIMIT 1`)
+    .bind(friendId, scenarioId)
     .first<FriendScenario>())!;
 }
 
@@ -368,13 +368,13 @@ export async function getFriendScenariosDueForDelivery(
     .prepare(
       `SELECT * FROM follower_scenarios
        WHERE status = 'active'
-         AND next_delivery_at IS NOT NULL`,
+         AND next_step_at IS NOT NULL`,
     )
     .all<FriendScenario>();
   const nowMs = new Date(now).getTime();
   return result.results
-    .filter((fs) => new Date(fs.next_delivery_at!).getTime() <= nowMs)
-    .sort((a, b) => new Date(a.next_delivery_at!).getTime() - new Date(b.next_delivery_at!).getTime());
+    .filter((fs) => new Date(fs.next_step_at!).getTime() <= nowMs)
+    .sort((a, b) => new Date(a.next_step_at!).getTime() - new Date(b.next_step_at!).getTime());
 }
 
 export async function advanceFriendScenario(
@@ -387,8 +387,8 @@ export async function advanceFriendScenario(
   await db
     .prepare(
       `UPDATE follower_scenarios
-       SET current_step_order = ?,
-           next_delivery_at = ?,
+       SET current_step = ?,
+           next_step_at = ?,
            updated_at = ?
        WHERE id = ?`,
     )
@@ -405,7 +405,7 @@ export async function completeFriendScenario(
     .prepare(
       `UPDATE follower_scenarios
        SET status = 'completed',
-           next_delivery_at = NULL,
+           next_step_at = NULL,
            updated_at = ?
        WHERE id = ?`,
     )
