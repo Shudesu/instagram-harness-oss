@@ -143,60 +143,8 @@ async function handleMessagingEvent(
       .bind(follower.id, JSON.stringify({ text: incomingText }))
       .run();
 
-    // Check auto-reply (comment rules with dm_keyword trigger)
-    const autoReplies = await db
-      .prepare(
-        `SELECT * FROM comment_rules WHERE is_active = 1 AND trigger_type = 'dm_keyword' ORDER BY created_at ASC`,
-      )
-      .all<{
-        id: string;
-        keyword: string;
-        match_type: 'exact' | 'contains' | 'regex';
-        response_type: string;
-        response_body: string;
-        delay_seconds: number;
-      }>();
-
-    let matched = false;
-    for (const rule of autoReplies.results) {
-      let isMatch = false;
-      if (rule.match_type === 'exact') {
-        isMatch = incomingText === rule.keyword;
-      } else if (rule.match_type === 'contains') {
-        isMatch = incomingText.includes(rule.keyword);
-      } else if (rule.match_type === 'regex') {
-        try {
-          isMatch = new RegExp(rule.keyword).test(incomingText);
-        } catch {
-          isMatch = false;
-        }
-      }
-
-      if (isMatch) {
-        // Apply delay if configured
-        if (rule.delay_seconds > 0) {
-          await new Promise((resolve) => setTimeout(resolve, rule.delay_seconds * 1000));
-        }
-
-        const responseBody = JSON.parse(rule.response_body);
-        await sendIgResponse(igClient, senderId, rule.response_type, responseBody);
-
-        // Log outgoing auto-reply
-        await db
-          .prepare(
-            `INSERT INTO messages_log (follower_id, direction, message_type, body, trigger_source)
-             VALUES (?, 'out', ?, ?, 'comment_rule')`,
-          )
-          .bind(follower.id, rule.response_type, rule.response_body)
-          .run();
-
-        matched = true;
-        break;
-      }
-    }
-
     // Check dm_keyword scenario triggers
-    if (!matched) {
+    {
       const scenarios = await getScenarios(db);
       for (const scenario of scenarios) {
         if (
