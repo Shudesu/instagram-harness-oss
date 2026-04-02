@@ -328,6 +328,16 @@ async function handleCommentEvent(
         await new Promise((resolve) => setTimeout(resolve, rule.delay_seconds * 1000));
       }
 
+      // Reply to the comment itself
+      try {
+        await igClient.replyToComment(
+          value.id,
+          `@${value.from.username} コメントありがとう！📩 DMを送りました！`,
+        );
+      } catch (err) {
+        console.error('Comment reply failed:', err);
+      }
+
       // Send DM to commenter
       const responseBody = JSON.parse(rule.response_body);
       await sendIgResponse(igClient, senderId, rule.response_type, responseBody);

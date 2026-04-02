@@ -100,6 +100,10 @@ export class InstagramClient {
     return this.request("GET", `/${igsid}?fields=id,username,name,profile_pic`);
   }
 
+  async replyToComment(commentId: string, message: string): Promise<{ id: string }> {
+    return this.request("POST", `/${commentId}/replies`, { message });
+  }
+
   async getMediaInfo(mediaId: string): Promise<MediaInfo> {
     return this.request(
       "GET",
