@@ -293,7 +293,7 @@ async function handleCommentEvent(
   // Check comment rules (match by keyword + optional media filter)
   const commentRules = await db
     .prepare(
-      `SELECT * FROM comment_rules WHERE is_active = 1 AND trigger_type = 'comment' ORDER BY created_at ASC`,
+      `SELECT * FROM comment_rules WHERE is_active = 1 ORDER BY created_at ASC`,
     )
     .all<{
       id: string;
