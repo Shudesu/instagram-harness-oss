@@ -1,198 +1,176 @@
-# LINE Harness
+# Instagram Harness
 
-LINE公式アカウント向けオープンソースCRM / マーケティングオートメーション。
-L-step・Utage の代替として、無料（または低コスト）で運用できます。
+Instagram DM自動化のオープンソースCRM。ManyChat・iステップの代替として、セルフホストで月額0円。
 
-## 機能
+## 特徴
 
-- **友だち管理** — Webhook で自動登録、タグ付け、セグメント分け
-- **ステップ配信** — シナリオ作成、遅延配信、分岐条件、友だち追加/タグトリガー
-- **一斉配信** — 全員 or タグ or セグメント絞り込み、予約配信
-- **自動応答** — キーワードマッチ + アクションエンジン（タグ付与・メニュー切替・メタデータ設定）
-- **フォーム** — LIFF内フォーム、回答→メタデータ自動保存
-- **リッチメニュー** — ユーザー別切り替え対応
-- **URL追跡** — 全リンク自動追跡、クリックしたユーザーを特定（LIFF連携）
-- **スコアリング** — ルールベースの友だちスコアリング
-- **スタッフ管理** — owner / admin / staff の3ロール、APIキーごとの権限制御
-- **MCP Server** — Claude Code / AI エージェントから自然言語でLINE操作
-- **SDK** — TypeScript SDK でプログラマティックに全機能を操作
-- **管理画面** — Next.js ダッシュボードで直感的に操作
-- **マルチアカウント** — 複数LINE公式アカウントを1つのDBで管理
-- **BAN対策** — ステルス配信（ジッター・バッチ分散・メッセージ変異）
-
-## 技術スタック
-
-| レイヤー | 技術 |
-|---------|------|
-| API / Webhook | Cloudflare Workers + Hono |
-| データベース | Cloudflare D1 (SQLite) |
-| 定期実行 | Workers Cron Triggers (5分毎) |
-| 管理画面 | Next.js 15 (App Router) + Tailwind CSS |
-| LIFF | Vite + TypeScript (Cloudflare Pages) |
-| SDK | TypeScript, ESM + CJS, ゼロ依存 |
-| MCP Server | Model Context Protocol, `@line-harness/sdk` ベース |
-| LINE連携 | LINE Messaging API + LINE Login (LIFF) |
+- **コメント→DM自動送信** — 投稿/リールにコメントしたらDMで特典配布
+- **コメント自動リプライ** — コメントに自動返信（カスタマイズ可能）
+- **ステップ配信** — キーワードトリガーで時間差DM連続送信
+- **リッチメッセージ** — ボタン付きカード、カルーセル、クイックリプライ
+- **一斉配信** — 全フォロワー or タグ絞り込みでDM一斉送信
+- **フォーム** — DM内でデータ収集
+- **トラッキングリンク** — クリック計測、流入経路分析
+- **ストーリーメンション→DM** — メンションしてくれた人に自動DM
+- **LINE Harness連携** — UUID紐づけでIG×LINEクロスプラットフォーム統合
+- **MCP対応** — Claude Codeから全操作可能（23ツール）
+- **管理画面** — ダッシュボード、フォロワー一覧、コメントルール管理
 
 ## アーキテクチャ
 
 ```
-LINE Platform ──→ CF Workers (webhook) ──→ D1
-                                          ↑
-Claude Code ──→ MCP Server ──→ SDK ──→ CF Workers (API) ──→ D1
-                                          ↑
-Vercel (Admin UI) ─────────────────→ CF Workers (API) ──→ D1
-                                          ↑
-CF Cron Trigger ──→ Workers ──→ LINE Messaging API
-                                          ↑
-LIFF (CF Pages) ──→ CF Workers (LIFF API) ──→ D1
+Cloudflare Workers (Hono) + D1 (SQLite) + R2 (画像)
 ```
 
-## MCP Server (AI連携)
+- **Worker**: Webhook受信、API、Cron配信
+- **D1**: フォロワー、タグ、シナリオ、コメントルール等
+- **R2**: 画像ホスティング
+- **Admin UI**: Next.js 15 + Tailwind (CF Pages)
 
-Claude Code や他のMCPクライアントから、自然言語でLINE公式アカウントを操作できます。
+## セットアップ（15分）
 
-### セットアップ
+> 詳細は [docs/QUICKSTART.md](docs/QUICKSTART.md) を参照
+
+### 1. Meta App作成
+developers.facebook.com → アプリ作成 → 「Instagramでメッセージとコンテンツを管理」
+
+### 2. テスター追加 & トークン生成
+Instagram APIダッシュボードでIGアカウントを接続、トークン生成
+
+### 3. デプロイ
+```bash
+git clone https://github.com/Shudesu/instagram-harness.git
+cd instagram-harness/apps/worker
+
+wrangler d1 create instagram-harness
+wrangler r2 bucket create instagram-harness-images
+wrangler d1 execute instagram-harness --remote --file=../../packages/db/schema.sql
+
+echo "YOUR_SECRET" | wrangler secret put IG_APP_SECRET
+echo "YOUR_TOKEN" | wrangler secret put IG_ACCESS_TOKEN
+echo "YOUR_ID" | wrangler secret put IG_USER_ID
+echo "YOUR_VERIFY" | wrangler secret put IG_VERIFY_TOKEN
+echo "$(openssl rand -hex 32)" | wrangler secret put API_KEY
+
+wrangler deploy
+```
+
+### 4. Webhook設定
+Meta Developer Console → コールバックURL設定 + アカウントレベルサブスクリプション
+
+### 5. 公開
+プライバシーポリシーURL設定 → 公開トグル → ルーティング設定
+
+## SDK
+
+```bash
+npm install @instagram-harness/sdk
+```
+
+```typescript
+import { InstagramHarness } from '@instagram-harness/sdk';
+
+const client = new InstagramHarness({
+  apiUrl: 'https://your-worker.workers.dev',
+  apiKey: 'your-api-key',
+});
+
+// フォロワー一覧
+const { items } = await client.followers.list();
+
+// コメントルール作成
+await client.commentRules.create({
+  name: 'プロモ',
+  keyword: '詳細',
+  matchType: 'contains',
+  responseType: 'template',
+  responseBody: {
+    elements: [{
+      title: '🎁 特典はこちら',
+      buttons: [{ type: 'web_url', url: 'https://...', title: '受け取る' }]
+    }]
+  },
+});
+
+// ブロードキャスト
+await client.broadcasts.create({
+  name: 'キャンペーン',
+  messageType: 'text',
+  body: JSON.stringify({ text: '📢 お知らせ！' }),
+});
+```
+
+## MCP (Claude Code連携)
 
 ```json
-// .mcp.json
 {
   "mcpServers": {
-    "line-harness": {
-      "command": "npx",
-      "args": ["-y", "@line-harness/mcp-server@latest"],
+    "instagram-harness": {
+      "command": "node",
+      "args": ["packages/mcp-server/dist/index.js"],
       "env": {
-        "LINE_HARNESS_API_URL": "https://your-worker.workers.dev",
-        "LINE_HARNESS_API_KEY": "your-api-key"
+        "INSTAGRAM_HARNESS_API_URL": "https://your-worker.workers.dev",
+        "INSTAGRAM_HARNESS_API_KEY": "your-api-key"
       }
     }
   }
 }
 ```
 
-### 利用可能なツール (25個)
+Claude Codeから自然言語で操作:
+- 「フォロワー一覧を見せて」
+- 「"仕組み"というコメントが来たらDMで特典を送るルールを作って」
+- 「全フォロワーにキャンペーンDMを送って」
 
-| ツール | 説明 |
-|--------|------|
-| `send_message` | テキスト・画像・Flexメッセージ送信 |
-| `list_friends` | 友だち一覧（名前検索・タグ・メタデータフィルタ対応） |
-| `get_friend_detail` | 友だち詳細情報 |
-| `manage_friends` | 友だち数取得・メタデータ更新・リッチメニュー割当/解除 |
-| `manage_tags` | タグ一覧・作成・削除・友だちへのタグ付け/外し |
-| `broadcast` | 一斉配信（即時・予約・セグメント） |
-| `manage_broadcasts` | 配信一覧・詳細・下書き作成・更新・セグメント配信 |
-| `create_scenario` | ステップ配信シナリオ作成 |
-| `manage_scenarios` | シナリオ一覧・詳細・更新・削除・ステップCRUD |
-| `enroll_in_scenario` | 友だちをシナリオに登録 |
-| `create_form` | LIFFフォーム作成 |
-| `manage_forms` | フォーム一覧・詳細・更新・削除 |
-| `get_form_submissions` | フォーム回答データ取得 |
-| `create_rich_menu` | リッチメニュー作成（画像アップロード対応） |
-| `manage_rich_menus` | リッチメニュー一覧・削除・デフォルト設定 |
-| `create_tracked_link` | URLトラッキングリンク作成 |
-| `manage_tracked_links` | トラッキングリンク一覧・削除 |
-| `get_link_clicks` | リンククリック分析 |
-| `upload_image` | R2画像アップロード（公開URL取得） |
-| `manage_staff` | スタッフアカウント管理 |
-| `manage_ad_platforms` | 広告プラットフォーム連携 |
-| `get_conversion_logs` | コンバージョンログ取得 |
-| `account_summary` | アカウント概要 |
-| `list_crm_objects` | CRMオブジェクト汎用一覧 |
-| `auto_track_urls` | URL自動トラッキング |
+## LINE Harness連携
 
-## 5分デプロイガイド
+Instagram × LINEのクロスプラットフォーム統合。ManyChat単体では不可能。
 
-### 前提条件
-
-- Node.js 20+
-- pnpm 9+
-- [Cloudflare アカウント](https://dash.cloudflare.com/sign-up)
-- [LINE Developers アカウント](https://developers.line.biz/)
-
-### 1. LINE チャネル設定
-
-1. [LINE Developers Console](https://developers.line.biz/console/) でプロバイダーを作成
-2. Messaging API チャネルを作成
-3. 以下を控えておく:
-   - **チャネルシークレット** (Basic settings)
-   - **チャネルアクセストークン** (Messaging API → Issue)
-
-### 2. リポジトリのセットアップ
-
-```bash
-git clone https://github.com/Shudesu/line-harness.git
-cd line-harness
-pnpm install
-```
-
-### 3. Cloudflare D1 データベース作成
-
-```bash
-npx wrangler d1 create line-crm
-# 出力される database_id を apps/worker/wrangler.toml に記入
-
-# スキーマを適用
-npx wrangler d1 execute line-crm --file=packages/db/schema.sql
-```
-
-### 4. Workers のシークレット設定
-
-```bash
-npx wrangler secret put LINE_CHANNEL_SECRET
-npx wrangler secret put LINE_CHANNEL_ACCESS_TOKEN
-npx wrangler secret put API_KEY
-```
-
-### 5. Workers デプロイ
-
-```bash
-pnpm deploy:worker
-```
-
-### 6. LINE Webhook 設定
-
-1. LINE Developers Console → Messaging API
-2. Webhook URL: `https://your-worker.workers.dev/webhook`
-3. Webhook を有効化 → 検証
-
-### 7. 管理画面デプロイ
-
-```bash
-cd apps/web
-vercel deploy
-# 環境変数: NEXT_PUBLIC_API_URL のみ（APIキーはログイン画面で入力）
-```
-
-### 8. 動作確認
-
-1. LINE公式アカウントを友だち追加
-2. 管理画面で友だちが表示されることを確認
-3. テストメッセージを送信
+1. IGコメント → DM（LINE追加ボタン付き、`ref=ig_{{igsid}}`）
+2. ユーザーがLINE友だち追加
+3. LINE Harnessが流入経路を自動記録（`ref_code`）
+4. UUID紐づけで両プラットフォームのユーザー情報を統合
 
 ## プロジェクト構成
 
 ```
-line-harness/
+instagram-harness/
 ├── apps/
-│   ├── web/                # Next.js 管理画面
-│   ├── worker/             # Cloudflare Workers API
-│   └── liff/               # LIFF アプリ (友だち追加・フォーム・予約)
+│   ├── worker/     # Cloudflare Workers (API + Webhook)
+│   └── web/        # Next.js 管理画面
 ├── packages/
-│   ├── db/                 # D1 スキーマ & クエリ
-│   ├── sdk/                # TypeScript SDK (@line-harness/sdk)
-│   ├── mcp-server/         # MCP Server (@line-harness/mcp-server)
-│   ├── line-sdk/           # LINE Messaging API ラッパー
-│   └── shared/             # 共有型定義
+│   ├── sdk/        # TypeScript SDK (@instagram-harness/sdk)
+│   ├── mcp-server/ # MCP Server (@instagram-harness/mcp-server)
+│   ├── ig-sdk/     # Instagram Graph API ラッパー
+│   ├── db/         # D1 スキーマ + クエリ
+│   └── shared/     # 共有型定義
 └── docs/
-    └── wiki/               # ドキュメント (25ページ)
+    ├── QUICKSTART.md  # 15分セットアップ
+    ├── SETUP-GUIDE.md # 全罠と解決策
+    └── API.md         # REST API + SDK + MCP リファレンス
 ```
 
-## スケーリング
+## ドキュメント
 
-| 友だち数 | コスト目安 |
-|----------|-----------|
-| ~5,000 | 無料 |
-| ~10,000 | D1: $0.75/100万読取, Workers: $5/月 |
-| 50,000+ | Queues追加で配信レート制御推奨 |
+- [15分クイックスタート](docs/QUICKSTART.md)
+- [セットアップガイド（全罠と解決策）](docs/SETUP-GUIDE.md)
+- [API リファレンス](docs/API.md)
+
+## ManyChat vs Instagram Harness
+
+| 機能 | ManyChat | Instagram Harness |
+|------|----------|-------------------|
+| コメント→DM | ✅ | ✅ |
+| ステップ配信 | ✅ | ✅ |
+| リッチメッセージ | ✅ | ✅ |
+| 一斉配信 | ✅ | ✅ |
+| コメントリプライ | ✅ | ✅ |
+| ストーリーメンション | ✅ | ✅ |
+| LINE連携 | ❌ | ✅ |
+| Claude Code操作 | ❌ | ✅ (MCP) |
+| セルフホスト | ❌ | ✅ |
+| 月額 | $15〜 | 0円 |
+| データ所有権 | ManyChat | あなた |
 
 ## ライセンス
 
