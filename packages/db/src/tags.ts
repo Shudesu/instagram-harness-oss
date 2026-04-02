@@ -28,22 +28,16 @@ export async function createTag(
   db: D1Database,
   input: CreateTagInput,
 ): Promise<Tag> {
-  const id = crypto.randomUUID();
-  const now = jstNow();
   const color = input.color ?? '#3B82F6';
 
-  await db
+  const result = await db
     .prepare(
-      `INSERT INTO tags (id, name, color, created_at)
-       VALUES (?, ?, ?, ?)`,
+      `INSERT INTO tags (name, color) VALUES (?, ?) RETURNING *`,
     )
-    .bind(id, input.name, color, now)
-    .run();
+    .bind(input.name, color)
+    .first<Tag>();
 
-  return (await db
-    .prepare(`SELECT * FROM tags WHERE id = ?`)
-    .bind(id)
-    .first<Tag>())!;
+  return result!;
 }
 
 export async function deleteTag(db: D1Database, id: string): Promise<void> {
