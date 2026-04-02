@@ -80,9 +80,9 @@ async function processSingleDelivery(
     id: string;
     follower_id: string;
     scenario_id: string;
-    current_step_order: number;
+    current_step: number;
     status: string;
-    next_delivery_at: string | null;
+    next_step_at: string | null;
   },
   _workerUrl?: string,
 ): Promise<void> {
@@ -100,8 +100,8 @@ async function processSingleDelivery(
     return;
   }
 
-  // Find the next step whose step_order > current_step_order
-  const currentStep = steps.find((s) => s.step_order > fs.current_step_order);
+  // Find the next step whose step_order > current_step
+  const currentStep = steps.find((s) => s.step_order > fs.current_step);
   if (!currentStep) {
     await completeFriendScenario(db, fs.id);
     return;
