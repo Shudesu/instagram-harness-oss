@@ -322,8 +322,12 @@ async function handleCommentEvent(
         console.error('Comment reply failed:', err);
       }
 
-      // Send DM to commenter
-      const responseBody = JSON.parse(rule.response_body);
+      // Send DM to commenter (expand variables in response body)
+      const expandedBody = rule.response_body
+        .replace(/\{\{igsid\}\}/g, senderId)
+        .replace(/\{\{username\}\}/g, value.from.username)
+        .replace(/\{\{follower_id\}\}/g, String(follower.id));
+      const responseBody = JSON.parse(expandedBody);
       await sendIgResponse(igClient, senderId, rule.response_type, responseBody);
 
       // Log outgoing message
