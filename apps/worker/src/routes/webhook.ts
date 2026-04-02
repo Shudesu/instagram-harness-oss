@@ -330,10 +330,10 @@ async function handleCommentEvent(
 
       // Reply to the comment itself
       try {
-        await igClient.replyToComment(
-          value.id,
-          `@${value.from.username} コメントありがとう！📩 DMを送りました！`,
-        );
+        const replyText = (rule as any).reply_text
+          ? (rule as any).reply_text.replace('{{username}}', value.from.username)
+          : `@${value.from.username} コメントありがとう！📩 DMを送りました！`;
+        await igClient.replyToComment(value.id, replyText);
       } catch (err) {
         console.error('Comment reply failed:', err);
       }

@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS comment_rules (
   response_type TEXT NOT NULL CHECK(response_type IN ('text', 'image', 'template', 'quick_reply')),
   response_body TEXT NOT NULL,
   delay_seconds INTEGER DEFAULT 0,
+  reply_text TEXT DEFAULT NULL,
   is_active INTEGER DEFAULT 1,
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', datetime('now'))),
   updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', datetime('now')))
