@@ -28,6 +28,8 @@ export type Env = {
     IG_VERIFY_TOKEN: string;
     API_KEY: string;
     WORKER_URL: string;
+    IG_USERNAME?: string;
+    CONTACT_EMAIL?: string;
   };
   Variables: {
     staff: { id: string; name: string; role: 'owner' | 'admin' | 'staff' };
@@ -79,7 +81,7 @@ p { color: #666; line-height: 1.6; }
 <h1>📱 Instagram連携</h1>
 <p>以下のコードをInstagramのDMで送信してください</p>
 <div class="token-box">CONNECT:${token}</div>
-<a class="btn" href="https://ig.me/m/nodashuichi.ai">DMを開く</a>
+<a class="btn" href="https://ig.me/m/${c.env.IG_USERNAME ?? 'your_ig_username'}">DMを開く</a>
 <p style="margin-top:24px; font-size:13px; color:#999;">このコードを送信すると、LINEアカウントとInstagramアカウントが連携されます。</p>
 </body></html>`);
 });
@@ -91,7 +93,7 @@ app.post('/data-deletion', async (c) => {
   const body = await c.req.json<{ signed_request?: string }>();
   const confirmationCode = crypto.randomUUID();
   return c.json({
-    url: `https://instagram-harness.noda-c40.workers.dev/data-deletion?code=${confirmationCode}`,
+    url: `${new URL('/data-deletion', c.req.url).origin}/data-deletion?code=${confirmationCode}`,
     confirmation_code: confirmationCode,
   });
 });
@@ -112,7 +114,7 @@ app.get('/privacy-policy', (c) => {
 <p>Instagram Harness is a self-hosted Instagram DM automation tool. Each user deploys their own instance.</p>
 <p>This instance processes Instagram messages and comments solely for the account owner's automation purposes.</p>
 <p>No data is shared with third parties. All data is stored in the account owner's Cloudflare D1 database.</p>
-<p>Contact: info@aiagent-inc.com</p>
+<p>Contact: ${c.env.CONTACT_EMAIL ?? 'admin@example.com'}</p>
 </body></html>`);
 });
 
