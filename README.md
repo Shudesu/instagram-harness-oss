@@ -1,4 +1,16 @@
-# Instagram Harness
+# Instagram Harness → IG Harness
+
+> ⚠️ **このリポジトリは移動しました / This repository has moved**
+>
+> 新しいリポジトリ / New repository: **https://github.com/Shudesu/ig-harness-oss**
+>
+> 商標上の理由でパッケージ名を `@instagram-harness/*` から `@ig-harness/*` にリネームしました。
+> Package scope was renamed from `@instagram-harness/*` to `@ig-harness/*` for trademark reasons.
+>
+> 今後の更新はすべて新リポジトリで行われます。このリポジトリは read-only (archived) です。
+> All future updates will be pushed to the new repository. This repo is now read-only (archived).
+
+---
 
 Instagram DM自動化のオープンソースCRM。ManyChat・iステップの代替として、セルフホストで月額0円。
 
