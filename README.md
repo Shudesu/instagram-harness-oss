@@ -1,3 +1,10 @@
+> [!CAUTION]
+> **既知の脆弱性あり・デプロイ禁止（2026-11-20）**
+> このリポジトリはアーカイブ済みで、修正されない既知のセキュリティ上の問題（認証の不備・Webhook署名検証の不備など）が残っています。**このコードをデプロイ・利用しないでください。**
+> 後継の [ig-harness-oss](https://github.com/Shudesu/ig-harness-oss) へ移行してください。
+>
+> **Known vulnerabilities — do not deploy.** This archived repository contains unfixed security issues. Do not deploy or use this code; migrate to [ig-harness-oss](https://github.com/Shudesu/ig-harness-oss).
+
 # Instagram Harness → IG Harness
 
 > ⚠️ **このリポジトリは移動しました / This repository has moved**
